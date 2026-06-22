@@ -1,2 +1,6 @@
 # Env/Secrets
 .env
+
+# local artifacts
+*.log
+docs/
