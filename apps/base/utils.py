@@ -33,7 +33,8 @@ def generate_unique_id(
     while True:
         random_suffix = ''.join(secrets.choice(alphabet) for _ in range(length))
         new_id = f"{prefix}{random_suffix}"
+        manager = getattr(model_class, 'all_objects', model_class.objects)
         try:
-            model_class.objects.get(**{field_name: new_id})
+            manager.get(**{field_name: new_id})
         except model_class.DoesNotExist:
             return new_id  # Unique, safe to use
