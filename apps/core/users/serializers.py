@@ -8,12 +8,13 @@ from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
 from apps.base.enums import UserRole
+from apps.base.serializers import BaseSerializer
 
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(BaseSerializer):
     """Full user serializer with all fields."""
 
     class Meta:
@@ -37,7 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["user_id", "date_joined", "last_login", "is_superuser"]
 
 
-class UserCreateSerializer(serializers.ModelSerializer):
+class UserCreateSerializer(BaseSerializer):
     """Serializer for creating new users with optional password."""
 
     password = serializers.CharField(write_only=True, required=False)
@@ -89,7 +90,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return data
 
 
-class UserUpdateSerializer(serializers.ModelSerializer):
+class UserUpdateSerializer(BaseSerializer):
     """Serializer for updating user profile."""
 
     class Meta:
@@ -113,7 +114,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class UserListSerializer(serializers.ModelSerializer):
+class UserListSerializer(BaseSerializer):
     """Lightweight user serializer for list views."""
 
     class Meta:
@@ -238,7 +239,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return user
 
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
+class UserRegistrationSerializer(BaseSerializer):
     """Serializer for public user self-registration."""
 
     password = serializers.CharField(write_only=True)
