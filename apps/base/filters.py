@@ -60,11 +60,3 @@ class SoftDeleteFilterSet(BaseFilterSet):
         if value:
             return getattr(queryset.model, 'all_objects', queryset).all()
         return queryset
-
-
-class UUIDFilter(django_filters.FilterSet):
-    """
-    FilterSet with UUID lookup support.
-    """
-
-    id = django_filters.UUIDFilter(field_name='id')
