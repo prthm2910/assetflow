@@ -38,9 +38,9 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new users with auto-generated temp password."""
+    """Serializer for creating new users with optional password."""
 
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, required=False)
     temp_password = serializers.CharField(read_only=True)
 
     class Meta:
@@ -69,13 +69,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
-        temp_password_str = get_random_string(length=12) + "!1Aa"
         user = User(**validated_data)
-        # Set password from input if provided, otherwise use temp password
-        user.set_password(password)
-        user.must_change_password = True
+        if password:
+            user.set_password(password)
+            user.must_change_password = True
+        else:
+            # Auto-generate temp password only if none provided
+            temp_password_str = get_random_string(length=12) + "!1Aa"
+            user.set_password(temp_password_str)
+            user.must_change_password = True
+            user._temp_password = temp_password_str
         user.save()
-        user._temp_password = temp_password_str
         return user
 
     def to_representation(self, instance):
@@ -253,6 +257,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "A user with this username already exists."
             )
+        return value
+
+    def validate_password(self, value):
+        """Validate password complexity using Django validators."""
+        validate_password(value)
         return value
 
     def create(self, validated_data):
