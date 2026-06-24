@@ -90,9 +90,11 @@ class BaseViewSet(viewsets.ModelViewSet):
         serializer.save(updated_by=self.request.user)
 
 
-class BulkOperationsMixin:
+class BulkOperationsMixin(viewsets.GenericViewSet):
     """
-    Adds bulk-create, bulk-update, and bulk-delete actions to any ViewSet.
+    Self-sufficient mixin providing bulk-create, bulk-update, and bulk-delete actions.
+
+    Inherits from GenericViewSet so it can stand alone or be mixed into any ViewSet.
 
     - POST /bulk-create/ — Create multiple records
     - PUT /bulk-update/ — Update multiple records (by id)
@@ -121,7 +123,7 @@ class BulkOperationsMixin:
         from apps.base.services import BulkService
         updates = request.data if isinstance(request.data, list) else request.data.get('items', [])
         updated_count = BulkService.bulk_update(
-            model=self.queryset.model,
+            model=self.get_queryset().model,
             updates=updates,
             user=request.user,
         )
