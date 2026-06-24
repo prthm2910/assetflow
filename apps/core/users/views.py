@@ -143,7 +143,7 @@ class AuthViewSet(viewsets.GenericViewSet):
 
         return success_response(data=response_data, message="Login successful.")
 
-    @action(detail=False, methods=["post"], url_path="logout")
+    @action(detail=False, methods=["post"], url_path="logout", permission_classes=[IsAuthenticated])
     def logout(self, request):
         """
         Logout and blacklist refresh token.
@@ -159,7 +159,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         except Exception:
             return success_response(message="Logged out successfully.")
 
-    @action(detail=False, methods=["get", "patch"], url_path="me")
+    @action(detail=False, methods=["get", "patch"], url_path="me", permission_classes=[IsAuthenticated])
     def me(self, request):
         """Get or update current user profile."""
         if not request.user.is_authenticated:
@@ -183,7 +183,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer.save()
         return success_response(data=UserSerializer(request.user).data)
 
-    @action(detail=False, methods=["post"], url_path="change-password")
+    @action(detail=False, methods=["post"], url_path="change-password", permission_classes=[IsAuthenticated])
     def change_password(self, request):
         """Change password (authenticated users only)."""
         serializer = ChangePasswordSerializer(
@@ -299,6 +299,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Org admin sees users in their organization
         if user.role == UserRole.ORG_ADMIN.value:
+            if not user.organization_id:
+                return User.objects.none()
             return User.objects.filter(
                 organization_id=user.organization_id
             ).order_by("-date_joined")
@@ -332,15 +334,28 @@ class UserViewSet(viewsets.ModelViewSet):
         return self.update(request, *args, **kwargs)
 
     def check_permissions(self, request):
-        """Only super_admin can access list/retrieve/create."""
+        """
+        Restrict access based on role and HTTP method.
+
+        - Write operations (POST, PUT, PATCH, DELETE): super_admin only
+        - Read operations (GET, HEAD, OPTIONS): super_admin and org_admin
+        """
         user = request.user
-        if (
-            request.method in ["GET", "POST"]
-            and user.role != UserRole.SUPER_ADMIN.value
-        ):
-            self.permission_denied(
-                request, message="Only super admins can access this endpoint."
-            )
+
+        # Write operations: super_admin only
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            if user.role != UserRole.SUPER_ADMIN.value:
+                self.permission_denied(
+                    request, message="Only super admins can modify users."
+                )
+
+        # Read operations: super_admin and org_admin
+        elif request.method in ["GET", "HEAD", "OPTIONS"]:
+            if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.ORG_ADMIN.value]:
+                self.permission_denied(
+                    request, message="You do not have permission to view users."
+                )
+
         super().check_permissions(request)
 
     def get_serializer_class(self):
