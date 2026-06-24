@@ -58,7 +58,7 @@ class SoftDeleteFilterSet(BaseFilterSet):
 
     def filter_include_deleted(self, queryset, name, value):
         if value:
-            return queryset.all_with_deleted()
+            return getattr(queryset.model, 'all_objects', queryset).all()
         return queryset
 
 
