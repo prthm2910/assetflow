@@ -108,6 +108,8 @@ class IsSelfOrAdmin(permissions.BasePermission):
             return True
 
         # User accessing their own record
+        if obj == user:
+            return True
         if hasattr(obj, 'user') and obj.user == user:
             return True
         if hasattr(obj, 'email') and obj.email == user.email:
