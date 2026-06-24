@@ -4,9 +4,11 @@ conftest.py — Project-level pytest fixtures for DRF API testing.
 Provides reusable authenticated and unauthenticated API clients
 that all child apps import via pytest's fixture system.
 """
+
 import pytest
-from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+
 
 User = get_user_model()
 
@@ -14,6 +16,7 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 # Unauthenticated client
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def api_client():
@@ -25,15 +28,16 @@ def api_client():
 # User fixtures (model objects, no auth attached)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def user(db):
     """Regular employee user"""
     return User.objects.create_user(
-        username='employee',
-        email='employee@test.com',
-        password='testpass123',
-        first_name='Test',
-        last_name='Employee',
+        username="employee",
+        email="employee@test.com",
+        password="testpass123",
+        first_name="Test",
+        last_name="Employee",
     )
 
 
@@ -41,31 +45,35 @@ def user(db):
 def org_admin_user(db):
     """Organization-level admin user — placeholder until Module 2."""
     return User.objects.create_user(
-        username='org_admin',
-        email='org_admin@test.com',
-        password='testpass123',
-        first_name='Org',
-        last_name='Admin',
+        username="org_admin",
+        email="org_admin@test.com",
+        password="testpass123",
+        first_name="Org",
+        last_name="Admin",
     )
 
 
 @pytest.fixture
 def super_admin_user(db):
-    """Super admin user — placeholder until Module 2."""
+    """Super admin user."""
+    from apps.base.enums import UserRole
+
     return User.objects.create_user(
-        username='super_admin',
-        email='super_admin@test.com',
-        password='testpass123',
-        first_name='Super',
-        last_name='Admin',
+        username="super_admin",
+        email="super_admin@test.com",
+        password="testpass123",
+        first_name="Super",
+        last_name="Admin",
         is_staff=True,
         is_superuser=True,
+        role=UserRole.SUPER_ADMIN.value,
     )
 
 
 # ---------------------------------------------------------------------------
 # Authenticated client fixtures — APIClient pre-authenticated per role
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def employee_client(api_client, user):
@@ -93,4 +101,4 @@ def super_admin_client(api_client, super_admin_user):
 # ---------------------------------------------------------------------------
 
 authenticated_client = employee_client  #: Authenticated as employee
-admin_client = super_admin_client      #: Admin-level access
+admin_client = super_admin_client  #: Admin-level access
