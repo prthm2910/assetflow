@@ -110,7 +110,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         user = serializer.save()
 
         # Generate tokens for immediate login
-        refresh = RefreshToken.for_user(user)
+        refresh = RefreshToken.for_user(user) # type: ignore
 
         return success_response(
             data={
@@ -127,7 +127,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user = serializer.validated_data["user"]
+        user = serializer.validated_data["user"] # type: ignore
         refresh = RefreshToken.for_user(user)
 
         response_data = {
@@ -200,7 +200,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = serializer.validated_data["email"].lower()
+        email = serializer.validated_data["email"].lower() # type: ignore
 
         try:
             user = User.objects.get(email__iexact=email)
@@ -286,7 +286,7 @@ class UserViewSet(viewsets.ModelViewSet):
     ordering = ["-date_joined"]
 
     def get_queryset(self):
-        user: User = self.request.user  
+        user: User = self.request.user   # type: ignore
 
         # Super admin sees all users
         if user.role == UserRole.SUPER_ADMIN.value:

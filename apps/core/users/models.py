@@ -65,7 +65,7 @@ class User(AbstractUser):
     must_change_password = models.BooleanField(default=True)
 
     # Phone number (e.g., +12125551234)
-    phone = PhoneNumberField(null=True, blank=True, region=None)
+    phone = PhoneNumberField(null=True, blank=True, region=None) # type: ignore
 
     class Meta:
         db_table = "users"
