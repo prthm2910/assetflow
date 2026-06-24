@@ -57,11 +57,11 @@ class TestUserCreateSerializer:
         user = serializer.save()
         assert user.username == "newuser1"
         assert user.must_change_password is True
-        # Response should include temp_password for admin to share
-        assert "temp_password" in serializer.data
+        # When password is provided, temp_password should NOT be in response
+        assert "temp_password" not in serializer.data
 
-    def test_create_user_requires_password(self):
-        """Creating user without password should fail validation."""
+    def test_create_user_without_password_generates_temp(self):
+        """Creating user without password should auto-generate temp password."""
         from apps.core.users.serializers import UserCreateSerializer
 
         data = {
@@ -71,8 +71,13 @@ class TestUserCreateSerializer:
             "last_name": "User",
         }
         serializer = UserCreateSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "password" in serializer.errors
+        assert serializer.is_valid(), serializer.errors
+        user = serializer.save()
+        assert user.username == "newuser2"
+        assert user.must_change_password is True
+        # temp_password should be in response when auto-generated
+        assert "temp_password" in serializer.data
+        assert len(serializer.data["temp_password"]) > 0
 
 
 @pytest.mark.django_db
