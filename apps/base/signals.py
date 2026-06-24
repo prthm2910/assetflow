@@ -9,7 +9,7 @@ audit_pre_delete: Logs DELETE action.
 
 Signals are registered in apps/base/apps.py -> ready().
 """
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import pre_save, post_save, pre_delete
 from django.dispatch import receiver
 
 
@@ -66,19 +66,29 @@ def _serialize_instance(instance, fields=None):
     return data
 
 
-def _get_old_data(instance):
+@receiver(pre_save)
+def audit_pre_save(sender, instance, **kwargs):
     """
-    Get the old data from database before save (for UPDATE detection).
-    Only works for existing instances.
+    Capture the old state of the instance before it is saved.
+    Stored on instance._old_data for retrieval in post_save.
     """
-    if instance.pk is None:
-        return None  # CREATE — no old data
+    if getattr(sender._meta, 'abstract', False) or sender.__name__ == 'AuditLog':
+        return
+    if instance.pk:
+        manager = getattr(sender, 'all_objects', None)
+        if manager is None:
+            instance._old_data = None
+            return
+        try:
+            old_instance = manager.get(pk=instance.pk)
+            instance._old_data = _serialize_instance(old_instance)
+        except sender.DoesNotExist:
+            instance._old_data = None
 
-    try:
-        old_instance = instance.__class__.all_objects.get(pk=instance.pk)
-        return _serialize_instance(old_instance)
-    except instance.__class__.DoesNotExist:
-        return None
+
+def _get_old_data(instance):
+    """Get the old data captured during pre_save."""
+    return getattr(instance, '_old_data', None)
 
 
 @receiver(post_save)
