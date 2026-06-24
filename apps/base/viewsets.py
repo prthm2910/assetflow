@@ -119,11 +119,14 @@ class BulkOperationsMixin(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['put'], url_path='bulk-update')
     def bulk_update(self, request):
-        """Update multiple records in a single request."""
+        """Update multiple records in a single request. Client sends HRIDs."""
         from apps.base.services import BulkService
         updates = request.data if isinstance(request.data, list) else request.data.get('items', [])
+        hrid_field = self.lookup_field
+        hrids = [item.get('id') for item in updates if item.get('id')]
+        queryset = self.get_queryset().filter(**{f'{hrid_field}__in': hrids})
         updated_count = BulkService.bulk_update(
-            queryset=self.get_queryset(),
+            queryset=queryset,
             updates=updates,
             user=request.user,
         )
@@ -131,9 +134,10 @@ class BulkOperationsMixin(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['delete'], url_path='bulk-delete')
     def bulk_delete(self, request):
-        """Soft-delete multiple records in a single request."""
+        """Soft-delete multiple records in a single request. Client sends HRIDs."""
         from apps.base.services import BulkService
         ids = request.data.get('ids', []) if isinstance(request.data, dict) else request.data
-        queryset = self.get_queryset().filter(id__in=ids)
+        hrid_field = self.lookup_field
+        queryset = self.get_queryset().filter(**{f'{hrid_field}__in': ids})
         count = BulkService.bulk_soft_delete(queryset)
         return Response({'deleted': count})
