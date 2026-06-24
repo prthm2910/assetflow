@@ -123,7 +123,7 @@ class BulkOperationsMixin(viewsets.GenericViewSet):
         from apps.base.services import BulkService
         updates = request.data if isinstance(request.data, list) else request.data.get('items', [])
         updated_count = BulkService.bulk_update(
-            model=self.get_queryset().model,
+            queryset=self.get_queryset(),
             updates=updates,
             user=request.user,
         )
