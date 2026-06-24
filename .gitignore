@@ -10,8 +10,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# pytest cache (generated on every test run)
+# pytest cache
 .pytest_cache/
+.ruff_cache/
 
 # Coverage reports
 htmlcov/
