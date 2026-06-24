@@ -5,8 +5,6 @@ RequestMiddleware stores the current request.user and IP address in thread-local
 storage so they can be accessed in signals (outside of request context).
 """
 import threading
-from django.utils.deprecation import MiddlewareMixin
-
 # Thread-local storage for request context
 _thread_locals = threading.local()
 
@@ -35,19 +33,19 @@ def get_current_ip():
     return None
 
 
-class RequestMiddleware(MiddlewareMixin):
+class RequestMiddleware:
     """
     Middleware that stores request context in thread-local storage.
-
-    Makes request.user and client IP accessible in signals and other
-    non-request contexts (e.g., Django signals, Celery tasks).
+    Guarantees cleanup of thread-local storage even if exceptions occur.
     """
 
-    def process_request(self, request):
-        """Store request in thread-local storage at the start of the request."""
-        _thread_locals.request = request
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-    def process_response(self, request, response):
-        """Clean up thread-local storage at the end of the request."""
-        _thread_locals.request = None
+    def __call__(self, request):
+        _thread_locals.request = request
+        try:
+            response = self.get_response(request)
+        finally:
+            _thread_locals.request = None
         return response
