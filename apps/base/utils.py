@@ -3,15 +3,13 @@ apps/base/utils.py — Utility functions for the base module.
 
 HRID (Human-Readable ID) generator using secrets for cryptographic security.
 """
+
 import secrets
 import string
 
 
 def generate_unique_id(
-    model_class,
-    field_name: str,
-    prefix: str = "",
-    length: int = 6
+    model_class, field_name: str, prefix: str = "", length: int = 6
 ) -> str:
     """
     Generate a unique alphanumeric HRID (e.g., AST7K3M9).
@@ -31,9 +29,9 @@ def generate_unique_id(
     """
     alphabet = string.ascii_uppercase + string.digits
     while True:
-        random_suffix = ''.join(secrets.choice(alphabet) for _ in range(length))
+        random_suffix = "".join(secrets.choice(alphabet) for _ in range(length))
         new_id = f"{prefix}{random_suffix}"
-        manager = getattr(model_class, 'all_objects', model_class.objects)
+        manager = getattr(model_class, "all_objects", model_class.objects)
         try:
             manager.get(**{field_name: new_id})
         except model_class.DoesNotExist:

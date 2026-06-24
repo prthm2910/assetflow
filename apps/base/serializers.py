@@ -4,6 +4,7 @@ apps/base/serializers.py — Base serializer for all AssetFlow models.
 All serializers inherit from BaseSerializer which provides:
 - All BaseModel fields as read-only
 """
+
 from rest_framework import serializers
 
 

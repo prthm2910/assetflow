@@ -3,6 +3,7 @@ apps/base/managers.py — Custom model managers.
 
 SoftDeleteManager: Filters out soft-deleted records by default.
 """
+
 from django.db import models
 
 

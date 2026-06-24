@@ -1,8 +1,8 @@
 """
 apps/base/filters.py — Reusable Django Filter FilterSet classes.
 """
+
 import django_filters
-from django import forms
 
 
 class BaseFilterSet(django_filters.FilterSet):
@@ -11,22 +11,22 @@ class BaseFilterSet(django_filters.FilterSet):
     """
 
     created_after = django_filters.IsoDateTimeFilter(
-        field_name='created_at',
-        lookup_expr='gte',
-        label='Created after (ISO format)',
+        field_name="created_at",
+        lookup_expr="gte",
+        label="Created after (ISO format)",
     )
     created_before = django_filters.IsoDateTimeFilter(
-        field_name='created_at',
-        lookup_expr='lte',
-        label='Created before (ISO format)',
+        field_name="created_at",
+        lookup_expr="lte",
+        label="Created before (ISO format)",
     )
     is_active = django_filters.BooleanFilter(
-        field_name='is_active',
-        label='Is active',
+        field_name="is_active",
+        label="Is active",
     )
     is_deleted = django_filters.BooleanFilter(
-        field_name='is_deleted',
-        label='Is deleted',
+        field_name="is_deleted",
+        label="Is deleted",
     )
 
 
@@ -36,9 +36,9 @@ class NameFilter(django_filters.FilterSet):
     """
 
     name = django_filters.CharFilter(
-        field_name='name',
-        lookup_expr='icontains',
-        label='Name contains',
+        field_name="name",
+        lookup_expr="icontains",
+        label="Name contains",
     )
 
 
@@ -49,8 +49,8 @@ class SoftDeleteFilterSet(BaseFilterSet):
     """
 
     include_deleted = django_filters.BooleanFilter(
-        method='filter_include_deleted',
-        label='Include deleted records',
+        method="filter_include_deleted",
+        label="Include deleted records",
     )
 
     class Meta:
@@ -58,5 +58,5 @@ class SoftDeleteFilterSet(BaseFilterSet):
 
     def filter_include_deleted(self, queryset, name, value):
         if value:
-            return getattr(queryset.model, 'all_objects', queryset).all()
+            return getattr(queryset.model, "all_objects", queryset).all()
         return queryset
