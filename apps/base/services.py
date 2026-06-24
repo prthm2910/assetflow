@@ -29,23 +29,32 @@ class BulkService:
         return serializer.save()
 
     @staticmethod
-    def bulk_update(model, updates, user=None):
+    def bulk_update(queryset, updates, user=None):
         """
         Update multiple records with individual field values.
 
         Args:
-            model: The Django model class.
+            queryset: The Django QuerySet to update.
             updates: List of dicts with 'id' and field values.
             user: The user performing the update (sets updated_by).
 
         Returns:
             Number of records updated.
         """
+        from django.db import transaction
+
         count = 0
-        for item in updates:
-            obj_id = item.pop('id')
-            update_fields = {**item, 'updated_by': user}
-            count += model.objects.filter(id=obj_id).update(**update_fields)
+        with transaction.atomic():
+            for item in updates:
+                obj_id = item.pop('id', None)
+                if not obj_id:
+                    continue
+                update_fields = {
+                    **item,
+                    'updated_by': user,
+                    'updated_at': timezone.now(),
+                }
+                count += queryset.filter(id=obj_id).update(**update_fields)
         return count
 
     @staticmethod
@@ -63,4 +72,5 @@ class BulkService:
             is_deleted=True,
             is_active=False,
             deleted_at=timezone.now(),
+            updated_at=timezone.now(),
         )
