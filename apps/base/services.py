@@ -1,6 +1,7 @@
 """
 apps/base/services.py — Bulk service for mass database operations.
 """
+
 from django.utils import timezone
 
 
@@ -46,13 +47,13 @@ class BulkService:
         count = 0
         with transaction.atomic():
             for item in updates:
-                obj_id = item.pop('id', None)
+                obj_id = item.pop("id", None)
                 if not obj_id:
                     continue
                 update_fields = {
                     **item,
-                    'updated_by': user,
-                    'updated_at': timezone.now(),
+                    "updated_by": user,
+                    "updated_at": timezone.now(),
                 }
                 count += queryset.filter(id=obj_id).update(**update_fields)
         return count
