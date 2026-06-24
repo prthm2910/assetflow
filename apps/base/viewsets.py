@@ -132,6 +132,13 @@ class BulkOperationsMixin(viewsets.GenericViewSet):
         hrid_field = self.lookup_field
         hrids = [item.get("id") for item in updates if item.get("id")]
         queryset = self.get_queryset().filter(**{f"{hrid_field}__in": hrids})
+
+        # Map HRIDs to UUIDs for BulkService
+        hrid_to_uuid = {getattr(obj, hrid_field): obj.id for obj in queryset}
+        for item in updates:
+            if "id" in item and item["id"] in hrid_to_uuid:
+                item["id"] = hrid_to_uuid[item["id"]]
+
         updated_count = BulkService.bulk_update(
             queryset=queryset,
             updates=updates,
