@@ -3,9 +3,11 @@ apps/base/models.py — Base model for all AssetFlow models.
 
 Provides UUID primary key, audit fields, soft delete, and auto-HRID generation.
 """
+
 import uuid
-from django.db import models
+
 from django.conf import settings
+from django.db import models
 from django.utils import timezone
 
 from apps.base.managers import SoftDeleteManager
@@ -38,14 +40,14 @@ class BaseModel(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='created_%(class)s_set',
+        related_name="created_%(class)s_set",
     )
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='updated_%(class)s_set',
+        related_name="updated_%(class)s_set",
     )
 
     # Soft delete + active toggle
@@ -69,6 +71,7 @@ class BaseModel(models.Model):
         if self._display_id_prefix and self._display_id_field:
             if not getattr(self, self._display_id_field, None):
                 from apps.base.utils import generate_unique_id
+
                 new_id = generate_unique_id(
                     model_class=self.__class__,
                     field_name=self._display_id_field,
@@ -83,7 +86,7 @@ class BaseModel(models.Model):
         self.is_deleted = True
         self.is_active = False
         self.deleted_at = timezone.now()
-        self.save(update_fields=['is_deleted', 'is_active', 'deleted_at', 'updated_at'])
+        self.save(update_fields=["is_deleted", "is_active", "deleted_at", "updated_at"])
 
     def hard_delete(self, using=None, keep_parents=False):
         """Actual database delete (bypasses soft delete)."""
@@ -94,7 +97,7 @@ class BaseModel(models.Model):
         self.is_deleted = False
         self.is_active = True
         self.deleted_at = None
-        self.save(update_fields=['is_deleted', 'is_active', 'deleted_at', 'updated_at'])
+        self.save(update_fields=["is_deleted", "is_active", "deleted_at", "updated_at"])
 
 
 class BaseUserManager(models.Manager):

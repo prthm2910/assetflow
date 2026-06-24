@@ -9,7 +9,8 @@ audit_pre_delete: Logs DELETE action.
 
 Signals are registered in apps/base/apps.py -> ready().
 """
-from django.db.models.signals import pre_save, post_save, pre_delete
+
+from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
 
@@ -20,6 +21,7 @@ def _get_audit_log_model():
     """
     try:
         from apps.platform.audit.models import AuditLog
+
         return AuditLog
     except ImportError:
         return None
@@ -28,7 +30,8 @@ def _get_audit_log_model():
 def _get_request_context():
     """Get user and IP from thread-local request context."""
     try:
-        from apps.base.middleware import get_current_user, get_current_ip
+        from apps.base.middleware import get_current_ip, get_current_user
+
         return get_current_user(), get_current_ip()
     except ImportError:
         return None, None
@@ -42,7 +45,7 @@ def _serialize_instance(instance, fields=None):
     if instance is None:
         return None
 
-    exclude = {'password', 'token', 'secret', '_state', 'all_objects', 'objects'}
+    exclude = {"password", "token", "secret", "_state", "all_objects", "objects"}
     if fields:
         exclude.update(fields)
 
@@ -53,10 +56,10 @@ def _serialize_instance(instance, fields=None):
             continue
         try:
             value = getattr(instance, fname, None)
-            if hasattr(value, 'pk'):
+            if hasattr(value, "pk"):
                 # Foreign key — store the ID
                 data[fname] = str(value.pk) if value else None
-            elif hasattr(value, 'all'):
+            elif hasattr(value, "all"):
                 # Related manager — skip
                 continue
             else:
@@ -72,10 +75,10 @@ def audit_pre_save(sender, instance, **kwargs):
     Capture the old state of the instance before it is saved.
     Stored on instance._old_data for retrieval in post_save.
     """
-    if getattr(sender._meta, 'abstract', False) or sender.__name__ == 'AuditLog':
+    if getattr(sender._meta, "abstract", False) or sender.__name__ == "AuditLog":
         return
     if instance.pk:
-        manager = getattr(sender, 'all_objects', None)
+        manager = getattr(sender, "all_objects", None)
         if manager is None:
             instance._old_data = None
             return
@@ -88,7 +91,7 @@ def audit_pre_save(sender, instance, **kwargs):
 
 def _get_old_data(instance):
     """Get the old data captured during pre_save."""
-    return getattr(instance, '_old_data', None)
+    return getattr(instance, "_old_data", None)
 
 
 @receiver(post_save)
@@ -104,39 +107,39 @@ def audit_post_save(sender, instance, created, **kwargs):
         return
 
     # Skip if sender is AuditLog itself (avoid infinite loop)
-    if sender.__name__ == 'AuditLog':
+    if sender.__name__ == "AuditLog":
         return
 
     # Skip abstract models
-    if getattr(sender._meta, 'abstract', False):
+    if getattr(sender._meta, "abstract", False):
         return
 
     user, ip = _get_request_context()
-    action = 'create' if created else 'update'
+    action = "create" if created else "update"
     new_data = _serialize_instance(instance)
     old_data = None if created else _get_old_data(instance)
 
     # Build kwargs for AuditLog
     kwargs_create = {
-        'action': action,
-        'model_name': sender.__name__,
-        'object_id': str(instance.pk),
-        'new_data': new_data,
+        "action": action,
+        "model_name": sender.__name__,
+        "object_id": str(instance.pk),
+        "new_data": new_data,
     }
 
     # Add org from instance if available
-    if hasattr(instance, 'organization'):
-        kwargs_create['organization'] = instance.organization
+    if hasattr(instance, "organization"):
+        kwargs_create["organization"] = instance.organization
 
     # Add user if available
     if user:
-        kwargs_create['user'] = user
+        kwargs_create["user"] = user
     if ip:
-        kwargs_create['ip_address'] = ip
+        kwargs_create["ip_address"] = ip
 
     # Only add old_data for updates
     if not created:
-        kwargs_create['old_data'] = old_data
+        kwargs_create["old_data"] = old_data
 
     try:
         AuditLog.objects.create(**kwargs_create)
@@ -155,32 +158,32 @@ def audit_pre_delete(sender, instance, **kwargs):
         return
 
     # Skip if sender is AuditLog itself
-    if sender.__name__ == 'AuditLog':
+    if sender.__name__ == "AuditLog":
         return
 
     # Skip abstract models
-    if getattr(sender._meta, 'abstract', False):
+    if getattr(sender._meta, "abstract", False):
         return
 
     user, ip = _get_request_context()
     old_data = _serialize_instance(instance)
 
     kwargs_create = {
-        'action': 'delete',
-        'model_name': sender.__name__,
-        'object_id': str(instance.pk),
-        'old_data': old_data,
+        "action": "delete",
+        "model_name": sender.__name__,
+        "object_id": str(instance.pk),
+        "old_data": old_data,
     }
 
     # Add org from instance if available
-    if hasattr(instance, 'organization'):
-        kwargs_create['organization'] = instance.organization
+    if hasattr(instance, "organization"):
+        kwargs_create["organization"] = instance.organization
 
     # Add user if available
     if user:
-        kwargs_create['user'] = user
+        kwargs_create["user"] = user
     if ip:
-        kwargs_create['ip_address'] = ip
+        kwargs_create["ip_address"] = ip
 
     try:
         AuditLog.objects.create(**kwargs_create)
