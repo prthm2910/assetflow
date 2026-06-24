@@ -2,23 +2,26 @@
 Django settings for the AssetFlow project.
 Assembles configuration from modular config/ files.
 """
+
+import logging
 import os
 from pathlib import Path
+
 import environ
-import logging
 
 from config.django import (
     DJANGO_APPS,
-    DJANGO_DEFAULT_MIDDLEWARE,
-    DJANGO_CORE_TEMPLATES,
     DJANGO_AUTH_PASSWORD_VALIDATORS,
-    LOCAL_MIDDLEWARE,
+    DJANGO_CORE_TEMPLATES,
+    DJANGO_DEFAULT_MIDDLEWARE,
     LOCAL_APPS,
+    LOCAL_MIDDLEWARE,
 )
 from config.drf import REST_FRAMEWORK
-from config.third_party import THIRD_PARTY_APPS, SPECTACULAR_SETTINGS
-from config.utils import get_db_config, get_simple_jwt_config
 from config.logging import LOGGING
+from config.third_party import SPECTACULAR_SETTINGS, THIRD_PARTY_APPS
+from config.utils import get_db_config, get_simple_jwt_config
+
 
 logger = logging.getLogger(__name__)
 logger.info("Starting AssetFlow settings initialization")
@@ -28,19 +31,16 @@ logger.info("Starting AssetFlow settings initialization")
 # ==============================================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-env = environ.Env(
-    DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, []),
-)
-env_file_path = BASE_DIR / '.env'
+env = environ.Env()
+env_file_path = BASE_DIR / ".env"
 environ.Env.read_env(env_file_path)
 
 # ==============================================================================
 # 2. Security Settings
 # ==============================================================================
-SECRET_KEY = env('DJANGO_SECRET_KEY')
-DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+DEBUG = bool(env("DJANGO_DEBUG"))
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
 # ==============================================================================
 # 3. Installed Apps
@@ -55,15 +55,15 @@ MIDDLEWARE = DJANGO_DEFAULT_MIDDLEWARE + LOCAL_MIDDLEWARE
 # ==============================================================================
 # 5. URL Configuration
 # ==============================================================================
-ROOT_URLCONF = 'assetflow.urls'
+ROOT_URLCONF = "assetflow.urls"
 TEMPLATES = DJANGO_CORE_TEMPLATES
-WSGI_APPLICATION = 'assetflow.wsgi.application'
+WSGI_APPLICATION = "assetflow.wsgi.application"
 
 # ==============================================================================
 # 6. Database
 # ==============================================================================
 DATABASES = get_db_config(env)
-AUTH_USER_MODEL = env('AUTH_USER_MODEL')
+AUTH_USER_MODEL = env("AUTH_USER_MODEL")
 
 # ==============================================================================
 # 7. Password Validation
@@ -73,18 +73,18 @@ AUTH_PASSWORD_VALIDATORS = DJANGO_AUTH_PASSWORD_VALIDATORS
 # ==============================================================================
 # 8. Internationalization
 # ==============================================================================
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 # ==============================================================================
 # 9. Static & Media Files
 # ==============================================================================
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # ==============================================================================
 # 10. API Configuration (DRF & JWT)
@@ -98,12 +98,12 @@ SPECTACULAR_SETTINGS = SPECTACULAR_SETTINGS
 # ==============================================================================
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 if not DEBUG:
-    CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS')
+    CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
 
 # ==============================================================================
 # 12. Default Auto Field
 # ==============================================================================
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ==============================================================================
 # 13. Logging Configuration
