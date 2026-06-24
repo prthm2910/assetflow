@@ -262,10 +262,15 @@ class AuthViewSet(viewsets.GenericViewSet):
         summary="Create user",
         description="Create a new user. Only super admins can create users.",
     ),
-    partial_update=extend_schema(
+    update=extend_schema(
         tags=["User Management"],
         summary="Update user",
         description="Update user details. Only super admins can update users.",
+    ),
+    partial_update=extend_schema(
+        tags=["User Management"],
+        summary="Partial update user",
+        description="Partially update user details. Only super admins can update users.",
     ),
     destroy=extend_schema(
         tags=["User Management"],
