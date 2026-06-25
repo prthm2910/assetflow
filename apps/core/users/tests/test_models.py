@@ -69,7 +69,7 @@ class TestUserModel:
     def test_user_default_role_is_employee(self):
         """New users should have default role of employee."""
         from apps.core.users.models import User
-        from apps.base.enums import UserRole
+        from apps.base.constants import UserRole
 
         user = User(username="testuser3", email="test3@example.com")
         assert user.role == UserRole.EMPLOYEE.value

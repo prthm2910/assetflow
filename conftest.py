@@ -14,14 +14,24 @@ User = get_user_model()
 
 
 # ---------------------------------------------------------------------------
-# Unauthenticated client
+# Organization fixture
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture
-def api_client():
-    """Unauthenticated API client — simulates anonymous requests."""
-    return APIClient()
+def organization(transactional_db):
+    """Create a test organization with config."""
+    from apps.core.organizations.models import Organization
+
+    return Organization.objects.create(
+        name="Test Organization",
+        slug="test-org",
+        contact_email="admin@testorg.com",
+        contact_phone="+1234567890",
+        address="123 Test St",
+        city="Testville",
+        country="Testland",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -30,33 +40,39 @@ def api_client():
 
 
 @pytest.fixture
-def user(db):
-    """Regular employee user"""
+def user(transactional_db, organization):
+    """Regular employee user assigned to an organization."""
     return User.objects.create_user(
         username="employee",
         email="employee@test.com",
         password="testpass123",
         first_name="Test",
         last_name="Employee",
+        role="employee",
+        organization_id=organization.id,
     )
 
 
 @pytest.fixture
-def org_admin_user(db):
-    """Organization-level admin user — placeholder until Module 2."""
+def org_admin_user(transactional_db, organization):
+    """Organization-level admin user assigned to an organization."""
+    from apps.base.constants import UserRole
+
     return User.objects.create_user(
         username="org_admin",
         email="org_admin@test.com",
         password="testpass123",
         first_name="Org",
         last_name="Admin",
+        role=UserRole.ORG_ADMIN.value,
+        organization_id=organization.id,
     )
 
 
 @pytest.fixture
 def super_admin_user(db):
     """Super admin user."""
-    from apps.base.enums import UserRole
+    from apps.base.constants import UserRole
 
     return User.objects.create_user(
         username="super_admin",
@@ -73,6 +89,12 @@ def super_admin_user(db):
 # ---------------------------------------------------------------------------
 # Authenticated client fixtures — APIClient pre-authenticated per role
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def api_client():
+    """Unauthenticated API client — simulates anonymous requests."""
+    return APIClient()
 
 
 @pytest.fixture

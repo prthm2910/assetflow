@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory
 from unittest.mock import Mock
 
 from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 
 
 # NOTE: `user` fixture is provided by conftest.py (project root).
@@ -51,7 +51,12 @@ class TestBaseViewSet:
         viewset.request = request
         viewset.get_serializer_context = lambda: {"request": request}
 
+        class MockModel:
+            created_by = None
+
         class MockSerializer:
+            Meta = type("Meta", (), {"model": MockModel})()
+
             def save(self, **kwargs):
                 assert kwargs.get("created_by") == user
 
@@ -69,7 +74,12 @@ class TestBaseViewSet:
         viewset = BaseViewSet()
         viewset.request = request
 
+        class MockModel:
+            updated_by = None
+
         class MockSerializer:
+            Meta = type("Meta", (), {"model": MockModel})()
+
             def save(self, **kwargs):
                 assert kwargs.get("updated_by") == user
 

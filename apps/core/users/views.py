@@ -2,6 +2,9 @@
 apps/core/users/views.py — Views for authentication and user management.
 """
 
+from datetime import timedelta
+
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -10,8 +13,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.base.response import error_response, success_response
+from apps.base.viewsets import BaseViewSet
+from apps.core.users.models import PasswordResetToken
 from apps.core.users.serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
@@ -206,11 +211,6 @@ class AuthViewSet(viewsets.GenericViewSet):
             user = User.objects.get(email__iexact=email)
 
             # Create reset token
-            from datetime import timedelta
-
-            from django.utils import timezone
-
-            from apps.core.users.models import PasswordResetToken
 
             token = get_random_string(64)
             expires_at = timezone.now() + timedelta(hours=24)
@@ -278,17 +278,23 @@ class AuthViewSet(viewsets.GenericViewSet):
         description="Soft delete a user. Only super admins can delete users.",
     ),
 )
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(BaseViewSet):
     """
     User management: CRUD, toggle active, reset password.
-    Only super admins can access list/create/update/delete.
+
+    Permissions:
+        - Read (GET): Super admin and org admin only
+        - Write (POST/PUT/PATCH/DELETE): Super admin only
     """
 
-    permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
     lookup_field = "user_id"
     ordering_fields = ["date_joined", "email", "first_name"]
     ordering = ["-date_joined"]
+
+    # Read: super admin + org admin | Write: super admin only
+    read_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
+    write_roles = [UserRole.SUPER_ADMIN]
 
     def get_queryset(self):
         user: User = self.request.user   # type: ignore
@@ -299,14 +305,23 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Org admin sees users in their organization
         if user.role == UserRole.ORG_ADMIN.value:
-            if not user.organization_id:
+            if not user.organization:
                 return User.objects.none()
             return User.objects.filter(
-                organization_id=user.organization_id
+                organization=user.organization
             ).order_by("-date_joined")
 
         # Employees see only themselves
         return User.objects.filter(id=user.id)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        if self.action in ["update", "partial_update"]:
+            return UserUpdateSerializer
+        if self.action == "list":
+            return UserListSerializer
+        return UserSerializer
 
     def create(self, request, *args, **kwargs):
         """Create user with standardized response."""
@@ -332,45 +347,6 @@ class UserViewSet(viewsets.ModelViewSet):
         """Partial update user with standardized response."""
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
-
-    def check_permissions(self, request):
-        """
-        Restrict access based on role and HTTP method.
-
-        - Write operations (POST, PUT, PATCH, DELETE): super_admin only
-        - Read operations (GET, HEAD, OPTIONS): super_admin and org_admin
-        """
-        user = request.user
-
-        # Write operations: super_admin only
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            if user.role != UserRole.SUPER_ADMIN.value:
-                self.permission_denied(
-                    request, message="Only super admins can modify users."
-                )
-
-        # Read operations: super_admin and org_admin
-        elif request.method in ["GET", "HEAD", "OPTIONS"]:
-            if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.ORG_ADMIN.value]:
-                self.permission_denied(
-                    request, message="You do not have permission to view users."
-                )
-
-        super().check_permissions(request)
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return UserCreateSerializer
-        if self.action in ["update", "partial_update"]:
-            return UserUpdateSerializer
-        if self.action == "list":
-            return UserListSerializer
-        return UserSerializer
-
-    def get_permissions(self):
-        if self.action in ["create", "toggle_active", "reset_password"]:
-            return [IsAuthenticated()]  # Add org admin check in permissions.py
-        return [IsAuthenticated()]
 
     @extend_schema(
         tags=["User Management"],

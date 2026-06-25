@@ -16,7 +16,7 @@ from apps.base.permissions import (
     IsObjectOwnerOrAdmin,
     IsSelfOrAdmin,
 )
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 
 
 def make_user(role=None, is_superuser=False):

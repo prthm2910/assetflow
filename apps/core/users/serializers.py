@@ -7,13 +7,14 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
+from apps.base.serializers import BaseSerializer
 
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(BaseSerializer):
     """Full user serializer with all fields."""
 
     class Meta:
@@ -25,7 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "phone",
-            "organization_id",
+            "organization",
             "role",
             "is_active",
             "is_staff",
@@ -37,7 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["user_id", "date_joined", "last_login", "is_superuser"]
 
 
-class UserCreateSerializer(serializers.ModelSerializer):
+class UserCreateSerializer(BaseSerializer):
     """Serializer for creating new users with optional password."""
 
     password = serializers.CharField(write_only=True, required=False)
@@ -53,7 +54,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "last_name",
             "phone",
             "role",
-            "organization_id",
+            "organization",
             "must_change_password",
             "password",
             "temp_password",
@@ -72,24 +73,24 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user = User(**validated_data)
         if password:
             user.set_password(password)
-            user.must_change_password = True
+            user.must_change_password = True  # type: ignore[attr-defined]
         else:
             # Auto-generate temp password only if none provided
             temp_password_str = get_random_string(length=12) + "!1Aa"
             user.set_password(temp_password_str)
-            user.must_change_password = True
-            user._temp_password = temp_password_str
+            user.must_change_password = True  # type: ignore[attr-defined]
+            user._temp_password = temp_password_str  # type: ignore[attr-defined]
         user.save()
         return user
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if hasattr(instance, "_temp_password"):
-            data["temp_password"] = instance._temp_password
+            data["temp_password"] = instance._temp_password  # type: ignore[attr-defined]
         return data
 
 
-class UserUpdateSerializer(serializers.ModelSerializer):
+class UserUpdateSerializer(BaseSerializer):
     """Serializer for updating user profile."""
 
     class Meta:
@@ -99,7 +100,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "last_name",
             "phone",
             "role",
-            "organization_id",
+            "organization",
             "is_active",
         ]
 
@@ -108,12 +109,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         # Employees can only update their own profile
         if request_user.role == UserRole.EMPLOYEE.value:
             validated_data.pop("role", None)
-            validated_data.pop("organization_id", None)
+            validated_data.pop("organization", None)
             validated_data.pop("is_active", None)
         return super().update(instance, validated_data)
 
 
-class UserListSerializer(serializers.ModelSerializer):
+class UserListSerializer(BaseSerializer):
     """Lightweight user serializer for list views."""
 
     class Meta:
@@ -124,7 +125,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "role",
-            "organization_id",
+            "organization",
             "is_active",
         ]
 
@@ -135,7 +136,7 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict) -> dict:
         email = attrs.get("email", "").lower()
         password = attrs.get("password", "")
 
@@ -161,7 +162,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict) -> dict:
         user = self.context["request"].user
 
         # Verify old password
@@ -184,7 +185,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     def save(self):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
-        user.must_change_password = False
+        user.must_change_password = False  # type: ignore[attr-defined]
         user.save(update_fields=["password", "must_change_password"])
         return user
 
@@ -238,7 +239,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return user
 
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
+class UserRegistrationSerializer(BaseSerializer):
     """Serializer for public user self-registration."""
 
     password = serializers.CharField(write_only=True)

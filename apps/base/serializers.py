@@ -1,8 +1,9 @@
 """
 apps/base/serializers.py — Base serializer for all AssetFlow models.
 
-All serializers inherit from BaseSerializer which provides:
-- All BaseModel fields as read-only
+Provides:
+- BaseModel fields as read-only (id, created_at, updated_at, created_by, updated_by, is_active, is_deleted)
+- DRY field definitions for all child serializers
 """
 
 from rest_framework import serializers
@@ -12,13 +13,22 @@ class BaseSerializer(serializers.ModelSerializer):
     """
     Base serializer for all AssetFlow models.
 
-    Includes all BaseModel fields as read-only.
-    Child serializers extend Meta.fields with their own fields.
+    Includes all BaseModel fields as read-only:
+    - id (UUID primary key)
+    - created_at / updated_at (timestamps)
+    - created_by / updated_by (user FKs)
+    - is_active / is_deleted (status flags)
 
-    Note: All datetime values are returned in UTC. Clients should handle
-    timezone conversion locally based on user preferences.
+    Usage:
+        class AssetSerializer(BaseSerializer):
+            class Meta:
+                model = Asset
+                fields = BaseSerializer.Meta.fields + ['asset_id', 'name', ...]
+
+    Child serializers inherit these fields automatically.
     """
 
+    # BaseModel fields as read-only
     id = serializers.UUIDField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -26,7 +36,6 @@ class BaseSerializer(serializers.ModelSerializer):
     updated_by = serializers.PrimaryKeyRelatedField(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
     is_deleted = serializers.BooleanField(read_only=True)
-    deleted_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         abstract = True
