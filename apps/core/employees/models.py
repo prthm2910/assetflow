@@ -56,14 +56,14 @@ class Department(BaseModel):
         related_name="sub_departments",
     )
 
-    # Manager of this department
+    # Department head — points to an Employee, not another Department
     head = models.ForeignKey(
-        "self",
+        "Employee",
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
         related_name="headed_departments",
-        help_text="Department head / manager",
+        help_text="Employee who heads this department",
     )
 
     class Meta:
