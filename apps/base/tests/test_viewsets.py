@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory
 from unittest.mock import Mock
 
 from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 
 
 # NOTE: `user` fixture is provided by conftest.py (project root).

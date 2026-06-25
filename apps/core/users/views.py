@@ -13,7 +13,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.base.response import error_response, success_response
 from apps.base.viewsets import BaseViewSet
 from apps.core.users.models import PasswordResetToken

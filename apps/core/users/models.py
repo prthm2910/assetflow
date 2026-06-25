@@ -9,7 +9,7 @@ from django.db import models
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.base.utils import generate_unique_id
 
 

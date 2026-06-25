@@ -6,7 +6,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.base.response import error_response, success_response
 from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
 from apps.core.organizations.models import Organization, OrganizationConfig

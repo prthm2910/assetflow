@@ -7,7 +7,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework import status
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.core.organizations.models import Organization
 
 

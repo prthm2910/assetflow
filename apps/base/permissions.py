@@ -6,7 +6,7 @@ Permission classes for role-based and org-based access control.
 
 from rest_framework import permissions
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 
 
 class IsSuperAdmin(permissions.BasePermission):

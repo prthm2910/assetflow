@@ -7,7 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.base.serializers import BaseSerializer
 
 

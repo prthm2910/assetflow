@@ -1,5 +1,5 @@
 """
-apps/base/enums.py — System-wide enumeration types.
+apps/base/constants.py — System-wide constants and enumeration types.
 
 All enums inherit from BaseEnum which provides a .choices() classmethod
 that returns Django-compatible (value, label) tuples for use in model field

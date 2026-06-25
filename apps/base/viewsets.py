@@ -13,7 +13,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.base.enums import UserRole
+from apps.base.constants import UserRole
 from apps.base.permissions import RoleBasedPermission
 
 

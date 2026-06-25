@@ -56,7 +56,7 @@ def user(transactional_db, organization):
 @pytest.fixture
 def org_admin_user(transactional_db, organization):
     """Organization-level admin user assigned to an organization."""
-    from apps.base.enums import UserRole
+    from apps.base.constants import UserRole
 
     return User.objects.create_user(
         username="org_admin",
@@ -72,7 +72,7 @@ def org_admin_user(transactional_db, organization):
 @pytest.fixture
 def super_admin_user(db):
     """Super admin user."""
-    from apps.base.enums import UserRole
+    from apps.base.constants import UserRole
 
     return User.objects.create_user(
         username="super_admin",
