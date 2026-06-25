@@ -10,10 +10,16 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.base.enums import UserRole
+from apps.base.permissions import RoleBasedPermission
+
+
+# ==============================================================================
+# Base ViewSet
+# ==============================================================================
 
 
 @extend_schema_view(
@@ -26,19 +32,36 @@ from apps.base.enums import UserRole
 )
 class BaseViewSet(viewsets.ModelViewSet):
     """
-    Base ViewSet with role-based data scoping.
+    Base ViewSet with role-based data scoping and permission controls.
 
     - Super admin: sees all data across all organizations
     - Org admin: sees their organization's data
     - Employee: sees limited data (controlled by scope_for_employee)
 
-    Child ViewSets override scope_queryset() and scope_for_employee().
+    Permissions via get_permissions() / RoleBasedPermission:
+        - Override read_roles / write_roles class attributes to restrict access.
+        - Empty (default) = all authenticated users can perform that operation.
+
+    Data scoping via scope_queryset() / scope_for_employee():
+        - Override these to control what data each role can access.
     """
 
-    permission_classes = [IsAuthenticated]
+    # Override these in subclasses with UserRole enum members
+    read_roles: list = []
+    write_roles: list = []
+
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     ordering_fields = ["created_at", "updated_at"]
     ordering = ["-created_at"]
+
+    def get_permissions(self) -> list[BasePermission]:
+        perms: list[BasePermission] = [IsAuthenticated()]
+        if self.read_roles or self.write_roles:
+            perms.append(RoleBasedPermission(
+                read_roles=self.read_roles,
+                write_roles=self.write_roles,
+            ))
+        return perms
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -83,12 +106,18 @@ class BaseViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        """Set created_by on create."""
-        serializer.save(created_by=self.request.user)
+        """Set created_by on create if the model supports it."""
+        kwargs = {}
+        if hasattr(serializer.Meta.model, "created_by"):
+            kwargs["created_by"] = self.request.user
+        serializer.save(**kwargs)
 
     def perform_update(self, serializer):
-        """Set updated_by on update."""
-        serializer.save(updated_by=self.request.user)
+        """Set updated_by on update if the model supports it."""
+        kwargs = {}
+        if hasattr(serializer.Meta.model, "updated_by"):
+            kwargs["updated_by"] = self.request.user
+        serializer.save(**kwargs)
 
 
 class BulkOperationsMixin(viewsets.GenericViewSet):
