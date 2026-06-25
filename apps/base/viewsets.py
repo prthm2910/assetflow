@@ -98,7 +98,7 @@ class BaseViewSet(viewsets.ModelViewSet):
         """
         Override in subclasses to restrict employee access.
 
-        Default implementation returns the queryset unchanged (employee sees all org data).
+        Default implementation returns the queryset unchanged.
         Common overrides:
             - Employee sees only assigned assets: queryset.filter(allocated_to=employee)
             - Employee sees only own requests: queryset.filter(requested_by=employee)
