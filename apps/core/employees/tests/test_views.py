@@ -17,9 +17,9 @@ User = get_user_model()
 @pytest.mark.django_db
 class TestDepartmentViewSet:
     def test_list_departments_as_org_admin(self, org_admin_client, department):
-        response = org_admin_client.get("/api/v1/employees/departments/")
+        response = org_admin_client.get("/api/v1/employees/departments/?page_size=1000")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 1
+        assert len(response.json()["data"]["results"]) == 1
 
     def test_list_departments_employee_readonly(self, employee_client, department):
         response = employee_client.get("/api/v1/employees/departments/")
@@ -28,16 +28,16 @@ class TestDepartmentViewSet:
     def test_list_departments_excludes_other_org(self, employee_client, second_organization):
         from apps.core.employees.models import Department
         Department.objects.create(organization=second_organization, name="Other Org Dept")
-        response = employee_client.get("/api/v1/employees/departments/")
+        response = employee_client.get("/api/v1/employees/departments/?page_size=1000")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 0
+        assert len(response.json()["data"]["results"]) == 0
 
     def test_list_departments_as_super_admin(self, super_admin_client, department, second_organization):
         from apps.core.employees.models import Department
         Department.objects.create(organization=second_organization, name="Other Org Dept")
-        response = super_admin_client.get("/api/v1/employees/departments/")
+        response = super_admin_client.get("/api/v1/employees/departments/?page_size=1000")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 2
+        assert len(response.json()["data"]["results"]) == 2
 
     def test_create_department_as_org_admin(self, org_admin_client, organization):
         response = org_admin_client.post(
@@ -89,7 +89,7 @@ class TestDepartmentViewSet:
             f"/api/v1/employees/departments/{department.dept_id}/employees/"
         )
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 1
+        assert len(response.json()["data"]["results"]) == 1
 
     def test_anonymous_cannot_list_departments(self, api_client, department):
         response = api_client.get("/api/v1/employees/departments/")
@@ -103,9 +103,9 @@ class TestDepartmentViewSet:
 @pytest.mark.django_db
 class TestEmployeeViewSet:
     def test_list_employees_as_org_admin(self, org_admin_client, employee):
-        response = org_admin_client.get("/api/v1/employees/")
+        response = org_admin_client.get("/api/v1/employees/?page_size=1000")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 1
+        assert len(response.json()["data"]["results"]) == 1
 
     def test_list_employees_excludes_other_org(self, org_admin_client, second_organization):
         from apps.core.employees.models import Employee
@@ -114,9 +114,9 @@ class TestEmployeeViewSet:
             organization=second_organization,
         )
         Employee.objects.create(organization=second_organization, user=user)
-        response = org_admin_client.get("/api/v1/employees/")
+        response = org_admin_client.get("/api/v1/employees/?page_size=1000")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 0
+        assert len(response.json()["data"]["results"]) == 0
 
     def test_list_employees_as_super_admin(self, super_admin_client, employee, second_organization):
         from apps.core.employees.models import Employee
@@ -125,9 +125,9 @@ class TestEmployeeViewSet:
             organization=second_organization,
         )
         Employee.objects.create(organization=second_organization, user=user)
-        response = super_admin_client.get("/api/v1/employees/")
+        response = super_admin_client.get("/api/v1/employees/?page_size=1000")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 2
+        assert len(response.json()["data"]["results"]) == 2
 
     def test_create_employee(self, org_admin_client, organization, department):
         user = User.objects.create_user(
@@ -242,7 +242,7 @@ class TestEmployeeCustomActions:
             f"/api/v1/employees/{manager_employee.employee_id}/direct-reports/"
         )
         assert response.status_code == status.HTTP_200_OK
-        results = response.json()["results"]
+        results = response.json()["data"]["results"]
         assert len(results) == 1
         assert results[0]["id"] == str(employee_with_manager.id)
 
@@ -251,7 +251,7 @@ class TestEmployeeCustomActions:
             f"/api/v1/employees/{employee.employee_id}/direct-reports/"
         )
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["results"] == []
+        assert response.json()["data"]["results"] == []
 
     def test_org_chart(self, org_admin_client, manager_employee, employee_with_manager):
         response = org_admin_client.get(

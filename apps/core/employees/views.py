@@ -63,7 +63,7 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return success_response(data=self.get_paginated_response(serializer.data).data)
         serializer = self.get_serializer(queryset, many=True)
         return success_response(data=serializer.data)
 
@@ -112,7 +112,7 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = EmployeeListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return success_response(data=self.get_paginated_response(serializer.data).data)
         serializer = EmployeeListSerializer(queryset, many=True)
         return success_response(data=serializer.data)
 
@@ -169,7 +169,7 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return success_response(data=self.get_paginated_response(serializer.data).data)
         serializer = self.get_serializer(queryset, many=True)
         return success_response(data=serializer.data)
 
@@ -226,7 +226,7 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
         page = self.paginate_queryset(reports)
         if page is not None:
             serializer = EmployeeListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return success_response(data=self.get_paginated_response(serializer.data).data)
         serializer = EmployeeListSerializer(reports, many=True)
         return success_response(data=serializer.data)
 
