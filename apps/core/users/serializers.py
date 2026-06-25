@@ -26,7 +26,7 @@ class UserSerializer(BaseSerializer):
             "first_name",
             "last_name",
             "phone",
-            "organization_id",
+            "organization",
             "role",
             "is_active",
             "is_staff",
@@ -54,7 +54,7 @@ class UserCreateSerializer(BaseSerializer):
             "last_name",
             "phone",
             "role",
-            "organization_id",
+            "organization",
             "must_change_password",
             "password",
             "temp_password",
@@ -100,7 +100,7 @@ class UserUpdateSerializer(BaseSerializer):
             "last_name",
             "phone",
             "role",
-            "organization_id",
+            "organization",
             "is_active",
         ]
 
@@ -125,7 +125,7 @@ class UserListSerializer(BaseSerializer):
             "first_name",
             "last_name",
             "role",
-            "organization_id",
+            "organization",
             "is_active",
         ]
 

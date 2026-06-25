@@ -33,10 +33,12 @@ class User(AbstractUser):
     Added fields:
     - user_id: HRID (USRXXXXXX) for public API exposure
     - role: Role-based access control
-    - organization_id: Multi-tenancy support
+    - organization: ForeignKey to Organization (multi-tenancy support)
     - must_change_password: Security flag for first login
+    - phone: Phone number field
 
-    Note: organization_id is nullable until Organization model (Module 3) is ready.
+    Note: The Employee model (coming in Module 4) will be 1:1 with User,
+    created together in a single transaction. The User must exist first.
     """
 
     # HRID field for public API exposure
@@ -50,8 +52,17 @@ class User(AbstractUser):
     _display_id_prefix = "USR"
     _display_id_field = "user_id"
 
-    # Organization membership — nullable until Organization model is ready
-    organization_id = models.UUIDField(null=True, blank=True, db_index=True)
+    # Organization membership — ForeignKey for proper relation
+    # Set to null for super admins (they belong to no org)
+    # Note: app_label is "organizations" (Django derives it from "apps.core.organizations")
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        help_text="Organization this user belongs to (null for super admins)",
+    )
 
     # Role-based access control
     role = models.CharField(
@@ -80,6 +91,21 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    @property
+    def is_super_admin(self) -> bool:
+        """Check if user is a super admin."""
+        return self.role == UserRole.SUPER_ADMIN.value
+
+    @property
+    def is_org_admin(self) -> bool:
+        """Check if user is an organization admin."""
+        return self.role == UserRole.ORG_ADMIN.value
+
+    @property
+    def is_employee(self) -> bool:
+        """Check if user is an employee."""
+        return self.role == UserRole.EMPLOYEE.value
 
 
 class PasswordResetToken(models.Model):
