@@ -55,9 +55,14 @@ class AssetCategory(BaseModel):
         verbose_name = "asset category"
         verbose_name_plural = "asset categories"
         ordering = ["name"]
-        unique_together = [["organization", "name"]]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "name"],
+                condition=models.Q(is_deleted=False),
+                name="unique_active_category_name_per_org",
+            )
+        ]
         indexes = [
-            models.Index(fields=["organization", "name"]),
             models.Index(fields=["organization", "is_active"]),
             models.Index(fields=["parent"]),
         ]

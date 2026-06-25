@@ -47,7 +47,53 @@ class AssetCategorySerializer(BaseSerializer):
         ]
 
     def get_sub_category_count(self, obj):
+        """Use annotated count if available, fall back to query."""
+        annotated = getattr(obj, "sub_category_count_annotated", None)
+        if annotated is not None:
+            return annotated
         return obj.sub_categories.filter(is_deleted=False, is_active=True).count()
+
+    def validate(self, attrs):
+        """
+        Prevent cross-org parenting and cyclic hierarchy.
+
+        - Parent must belong to the same organization
+        - Category cannot be its own parent
+        - Parent cannot be a descendant of this category
+        """
+        parent = attrs.get("parent")
+        organization = attrs.get("organization") or (
+            self.instance.organization if self.instance else None
+        )
+        instance = self.instance
+
+        if parent:
+            # Cross-org prevention
+            if organization and parent.organization != organization:
+                raise serializers.ValidationError(
+                    {"parent": "Parent category must belong to the same organization."}
+                )
+
+            if instance:
+                # Self-parent prevention
+                if parent == instance:
+                    raise serializers.ValidationError(
+                        {"parent": "A category cannot be its own parent."}
+                    )
+                # Cycle detection — walk up from parent, ensure we don't reach instance
+                seen = {instance.id}
+                current = parent
+                while current:
+                    if current.id in seen:
+                        raise serializers.ValidationError(
+                            {
+                                "parent": "Cyclic hierarchy detected: parent cannot be a descendant of this category."
+                            }
+                        )
+                    seen.add(current.id)
+                    current = current.parent
+
+        return attrs
 
 
 class AssetCategoryListSerializer(BaseSerializer):
@@ -74,6 +120,10 @@ class AssetCategoryListSerializer(BaseSerializer):
         ]
 
     def get_sub_category_count(self, obj):
+        """Use annotated count if available, fall back to query."""
+        annotated = getattr(obj, "sub_category_count_annotated", None)
+        if annotated is not None:
+            return annotated
         return obj.sub_categories.filter(is_deleted=False, is_active=True).count()
 
 
@@ -81,6 +131,8 @@ class AssetCategoryTreeSerializer(BaseSerializer):
     """
     Tree serializer for nested category hierarchy.
     Returns the category plus its direct sub-categories recursively.
+
+    Accepts parent_map via context for N+1-free tree rendering.
     """
 
     sub_categories = serializers.SerializerMethodField()
@@ -98,5 +150,12 @@ class AssetCategoryTreeSerializer(BaseSerializer):
         ]
 
     def get_sub_categories(self, obj):
-        children = obj.sub_categories.filter(is_deleted=False, is_active=True)
-        return AssetCategoryTreeSerializer(children, many=True).data
+        """Use parent_map from context if available, else query (fallback)."""
+        parent_map = self.context.get("parent_map")
+        if parent_map is not None:
+            children = parent_map.get(obj.id, [])
+        else:
+            children = obj.sub_categories.filter(is_deleted=False, is_active=True)
+        return AssetCategoryTreeSerializer(
+            children, many=True, context=self.context
+        ).data
