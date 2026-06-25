@@ -167,14 +167,18 @@ class RoleBasedPermission(permissions.BasePermission):
         )
     """
 
-    def __init__(self, read_roles: list = None, write_roles: list = None):
+    def __init__(
+        self,
+        read_roles: list | None = None,
+        write_roles: list | None = None,
+    ):
         """
         Args:
             read_roles: List of UserRole enum members allowed to read. Defaults to [] (all authenticated).
             write_roles: List of UserRole enum members allowed to write. Defaults to [] (all authenticated).
         """
-        self.read_roles = read_roles or []
-        self.write_roles = write_roles or []
+        self.read_roles: list = read_roles or []
+        self.write_roles: list = write_roles or []
 
     def has_permission(self, request, view):
         """Check if user has permission based on role and HTTP method."""

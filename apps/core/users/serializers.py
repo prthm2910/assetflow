@@ -73,20 +73,20 @@ class UserCreateSerializer(BaseSerializer):
         user = User(**validated_data)
         if password:
             user.set_password(password)
-            user.must_change_password = True
+            user.must_change_password = True  # type: ignore[attr-defined]
         else:
             # Auto-generate temp password only if none provided
             temp_password_str = get_random_string(length=12) + "!1Aa"
             user.set_password(temp_password_str)
-            user.must_change_password = True
-            user._temp_password = temp_password_str
+            user.must_change_password = True  # type: ignore[attr-defined]
+            user._temp_password = temp_password_str  # type: ignore[attr-defined]
         user.save()
         return user
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if hasattr(instance, "_temp_password"):
-            data["temp_password"] = instance._temp_password
+            data["temp_password"] = instance._temp_password  # type: ignore[attr-defined]
         return data
 
 
@@ -136,7 +136,7 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict) -> dict:
         email = attrs.get("email", "").lower()
         password = attrs.get("password", "")
 
@@ -162,7 +162,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict) -> dict:
         user = self.context["request"].user
 
         # Verify old password
@@ -185,7 +185,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     def save(self):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
-        user.must_change_password = False
+        user.must_change_password = False  # type: ignore[attr-defined]
         user.save(update_fields=["password", "must_change_password"])
         return user
 
