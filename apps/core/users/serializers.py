@@ -109,7 +109,7 @@ class UserUpdateSerializer(BaseSerializer):
         # Employees can only update their own profile
         if request_user.role == UserRole.EMPLOYEE.value:
             validated_data.pop("role", None)
-            validated_data.pop("organization_id", None)
+            validated_data.pop("organization", None)
             validated_data.pop("is_active", None)
         return super().update(instance, validated_data)
 
