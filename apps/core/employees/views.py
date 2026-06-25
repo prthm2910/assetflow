@@ -50,13 +50,8 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
         return queryset.none()
 
     def get_queryset(self):
-        user = self.request.user
-        if getattr(user, "role", None) == UserRole.SUPER_ADMIN.value:
-            return Department.objects.all()
-        user_org = getattr(user, "organization", None)
-        if user_org:
-            return Department.objects.filter(organization=user_org)
-        return Department.objects.none()
+        queryset = Department.objects.all()
+        return self.scope_queryset(queryset)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -149,17 +144,18 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
     write_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
 
     def get_queryset(self):
+        queryset = Employee.objects.select_related(
+            "user", "department", "manager", "organization"
+        )
+        return self.scope_queryset(queryset)
+
+    def scope_for_employee(self, queryset):
+        """Employee sees only employees in their own department."""
         user = self.request.user
-        if getattr(user, "role", None) == UserRole.SUPER_ADMIN.value:
-            return Employee.objects.select_related(
-                "user", "department", "manager", "organization"
-            ).all()
-        user_org = getattr(user, "organization", None)
-        if user_org:
-            return Employee.objects.select_related(
-                "user", "department", "manager", "organization"
-            ).filter(organization=user_org)
-        return Employee.objects.none()
+        employee = getattr(user, "employee_profile", None)
+        if employee and employee.department:
+            return queryset.filter(department=employee.department)
+        return queryset.none()
 
     def get_serializer_class(self):
         if self.action == "list":
