@@ -14,6 +14,7 @@ urlpatterns = [
     # API v1 — modules are included here as they are implemented
     path("api/v1/users/", include("apps.core.users.urls")),
     path("api/v1/organizations/", include("apps.core.organizations.urls")),
+    path("api/v1/employees/", include("apps.core.employees.urls")),
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/v1/docs/",
