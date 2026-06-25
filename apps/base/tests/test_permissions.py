@@ -1,203 +1,180 @@
 """
-apps/base/tests/test_permissions.py — Tests for permission classes.
-
-These tests mock the `role` attribute since auth.User doesn't have it.
-The actual role field is added in Module 2 (custom User model).
+apps/base/tests/test_permissions.py — Tests for RoleBasedPermission.
 """
 
 import pytest
 from unittest.mock import Mock
 from rest_framework.test import APIRequestFactory
 
-from apps.base.permissions import (
-    IsSuperAdmin,
-    IsOrgAdmin,
-    IsOrgMember,
-    IsObjectOwnerOrAdmin,
-    IsSelfOrAdmin,
-)
+from apps.base.permissions import RoleBasedPermission
 from apps.base.constants import UserRole
 
 
-def make_user(role=None, is_superuser=False):
-    """Create a mock user with the specified role attribute."""
+def make_request(method="GET", user=None):
+    """Create a mock API request with the given method and user."""
+    factory = APIRequestFactory()
+    method = method.upper()
+    if method == "GET":
+        request = factory.get("/")
+    elif method == "POST":
+        request = factory.post("/")
+    elif method == "PUT":
+        request = factory.put("/")
+    elif method == "PATCH":
+        request = factory.patch("/")
+    elif method == "DELETE":
+        request = factory.delete("/")
+    else:
+        request = factory.options("/")
+    request.user = user
+    return request
+
+
+def make_user(role=None, is_authenticated=True):
+    """Create a mock user with the specified role."""
     user = Mock()
-    user.is_authenticated = True
+    user.is_authenticated = is_authenticated
     user.role = role
-    user.is_superuser = is_superuser
     return user
 
 
-@pytest.mark.django_db
-class TestIsSuperAdmin:
-    """Tests for IsSuperAdmin permission."""
+class TestRoleBasedPermission:
+    """Tests for RoleBasedPermission."""
 
-    def test_super_admin_has_access(self):
-        """Super admin should have access."""
-        user = make_user(role=UserRole.SUPER_ADMIN.value, is_superuser=True)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsSuperAdmin()
+    # --- Unauthenticated users ---
 
-        assert permission.has_permission(request, None) is True
-
-    def test_org_admin_denied(self):
-        """Org admin should be denied."""
-        user = make_user(role=UserRole.ORG_ADMIN.value)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsSuperAdmin()
-
-        assert permission.has_permission(request, None) is False
-
-    def test_employee_denied(self):
-        """Employee should be denied."""
-        user = make_user(role=UserRole.EMPLOYEE.value)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsSuperAdmin()
-
-        assert permission.has_permission(request, None) is False
-
-    def test_unauthenticated_denied(self):
-        """Unauthenticated users should be denied."""
-        request = APIRequestFactory().get("/")
+    def test_unauthenticated_denied_read(self):
+        """Unauthenticated users should be denied on read."""
+        request = make_request("GET")
         request.user = None
-        permission = IsSuperAdmin()
-
+        permission = RoleBasedPermission()
         assert permission.has_permission(request, None) is False
 
-
-@pytest.mark.django_db
-class TestIsOrgAdmin:
-    """Tests for IsOrgAdmin permission."""
-
-    def test_org_admin_has_access(self):
-        """Org admin should have access."""
-        user = make_user(role=UserRole.ORG_ADMIN.value)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsOrgAdmin()
-
-        assert permission.has_permission(request, None) is True
-
-    def test_employee_denied(self):
-        """Employee should be denied."""
-        user = make_user(role=UserRole.EMPLOYEE.value)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsOrgAdmin()
-
-        assert permission.has_permission(request, None) is False
-
-    def test_super_admin_denied(self):
-        """Super admin should be denied (org-level check)."""
-        user = make_user(role=UserRole.SUPER_ADMIN.value, is_superuser=True)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsOrgAdmin()
-
-        assert permission.has_permission(request, None) is False
-
-
-@pytest.mark.django_db
-class TestIsOrgMember:
-    """Tests for IsOrgMember permission."""
-
-    def test_super_admin_always_allowed(self):
-        """Super admin always has access regardless of org."""
-        user = make_user(role=UserRole.SUPER_ADMIN.value, is_superuser=True)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsOrgMember()
-
-        assert permission.has_permission(request, None) is True
-
-    def test_org_admin_allowed(self):
-        """Org admin should be allowed."""
-        user = make_user(role=UserRole.ORG_ADMIN.value)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsOrgMember()
-
-        assert permission.has_permission(request, None) is True
-
-    def test_employee_allowed(self):
-        """Employee should be allowed."""
-        user = make_user(role=UserRole.EMPLOYEE.value)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsOrgMember()
-
-        assert permission.has_permission(request, None) is True
-
-    def test_unauthenticated_denied(self):
-        """Unauthenticated users should be denied."""
-        request = APIRequestFactory().get("/")
+    def test_unauthenticated_denied_write(self):
+        """Unauthenticated users should be denied on write."""
+        request = make_request("POST")
         request.user = None
-        permission = IsOrgMember()
-
+        permission = RoleBasedPermission()
         assert permission.has_permission(request, None) is False
 
+    # --- Super admin bypass ---
 
-@pytest.mark.django_db
-class TestIsObjectOwnerOrAdmin:
-    """Tests for IsObjectOwnerOrAdmin permission."""
+    def test_super_admin_read_unrestricted(self):
+        """Super admin bypasses read restrictions."""
+        user = make_user(role=UserRole.SUPER_ADMIN.value)
+        request = make_request("GET", user)
+        permission = RoleBasedPermission(
+            read_roles=[UserRole.EMPLOYEE],
+        )
+        assert permission.has_permission(request, None) is True
 
-    def test_super_admin_has_object_permission(self):
-        """Super admin should have object permission."""
-        user = make_user(role=UserRole.SUPER_ADMIN.value, is_superuser=True)
-        request = APIRequestFactory().get("/")
+    def test_super_admin_write_unrestricted(self):
+        """Super admin bypasses write restrictions."""
+        user = make_user(role=UserRole.SUPER_ADMIN.value)
+        request = make_request("POST", user)
+        permission = RoleBasedPermission(
+            write_roles=[UserRole.EMPLOYEE],
+        )
+        assert permission.has_permission(request, None) is True
+
+    # --- Read permission ---
+
+    def test_read_allowed_when_no_restriction(self):
+        """Read is allowed when read_roles is empty (no restriction)."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("GET", user)
+        permission = RoleBasedPermission()
+        assert permission.has_permission(request, None) is True
+
+    def test_read_denied_when_role_not_in_read_roles(self):
+        """Read is denied when user's role is not in read_roles."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("GET", user)
+        permission = RoleBasedPermission(
+            read_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
+
+    def test_read_allowed_when_role_in_read_roles(self):
+        """Read is allowed when user's role is in read_roles."""
+        user = make_user(role=UserRole.ORG_ADMIN.value)
+        request = make_request("GET", user)
+        permission = RoleBasedPermission(
+            read_roles=[UserRole.ORG_ADMIN, UserRole.EMPLOYEE],
+        )
+        assert permission.has_permission(request, None) is True
+
+    # --- Write permission ---
+
+    def test_write_allowed_when_no_restriction(self):
+        """Write is allowed when write_roles is empty (no restriction)."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("POST", user)
+        permission = RoleBasedPermission()
+        assert permission.has_permission(request, None) is True
+
+    def test_write_denied_when_role_not_in_write_roles(self):
+        """Write is denied when user's role is not in write_roles."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("POST", user)
+        permission = RoleBasedPermission(
+            write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
+
+    def test_write_allowed_when_role_in_write_roles(self):
+        """Write is allowed when user's role is in write_roles."""
+        user = make_user(role=UserRole.ORG_ADMIN.value)
+        request = make_request("POST", user)
+        permission = RoleBasedPermission(
+            write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN],
+        )
+        assert permission.has_permission(request, None) is True
+
+    # --- HTTP method → read vs write mapping ---
+
+    def test_put_is_write(self):
+        """PUT should be treated as write operation."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("PUT", user)
+        permission = RoleBasedPermission(
+            write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
+
+    def test_patch_is_write(self):
+        """PATCH should be treated as write operation."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("PATCH", user)
+        permission = RoleBasedPermission(
+            write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
+
+    def test_delete_is_write(self):
+        """DELETE should be treated as write operation."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("DELETE", user)
+        permission = RoleBasedPermission(
+            write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
+
+    def test_options_is_read(self):
+        """OPTIONS should be treated as read operation."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = make_request("OPTIONS", user)
+        permission = RoleBasedPermission(
+            read_roles=[UserRole.SUPER_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
+
+    def test_head_is_read(self):
+        """HEAD should be treated as read operation."""
+        user = make_user(role=UserRole.EMPLOYEE.value)
+        request = APIRequestFactory().head("/")
         request.user = user
-        permission = IsObjectOwnerOrAdmin()
-
-        class MockObj:
-            pass
-
-        obj = MockObj()
-        assert permission.has_object_permission(request, None, obj) is True
-
-    def test_owner_has_object_permission(self):
-        """Object owner should have permission."""
-        owner = make_user(role=UserRole.EMPLOYEE.value)
-        request = APIRequestFactory().get("/")
-        request.user = owner
-        permission = IsObjectOwnerOrAdmin()
-
-        class MockObj:
-            user = owner
-
-        obj = MockObj()
-        assert permission.has_object_permission(request, None, obj) is True
-
-    def test_non_owner_denied(self):
-        """Non-owner should be denied."""
-        owner = make_user(role=UserRole.EMPLOYEE.value)
-        non_owner = make_user(role=UserRole.EMPLOYEE.value)
-        request = APIRequestFactory().get("/")
-        request.user = non_owner
-        permission = IsObjectOwnerOrAdmin()
-
-        class MockObj:
-            user = owner
-
-        obj = MockObj()
-        assert permission.has_object_permission(request, None, obj) is False
-
-
-@pytest.mark.django_db
-class TestIsSelfOrAdmin:
-    """Tests for IsSelfOrAdmin permission."""
-
-    def test_super_admin_has_permission(self):
-        """Super admin should have permission for any object."""
-        user = make_user(role=UserRole.SUPER_ADMIN.value, is_superuser=True)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        permission = IsSelfOrAdmin()
-
-        class MockObj:
-            pass
-
-        obj = MockObj()
-        assert permission.has_object_permission(request, None, obj) is True
+        permission = RoleBasedPermission(
+            read_roles=[UserRole.SUPER_ADMIN],
+        )
+        assert permission.has_permission(request, None) is False
