@@ -5,12 +5,10 @@ apps/core/organizations/views.py — ViewSets for Organization and OrganizationP
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
-
 from apps.base.enums import UserRole
 from apps.base.response import error_response, success_response
+from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
 from apps.core.organizations.models import Organization, OrganizationConfig
 from apps.core.organizations.serializers import (
     OrganizationConfigSerializer,
@@ -58,14 +56,20 @@ class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
 
     - Super admin: full CRUD
     - Org admin / Employee: read-only (list/retrieve their own org)
+
+    Permissions:
+        - Read (GET): Any authenticated user
+        - Write (POST/PUT/PATCH/DELETE): Super admin only
     """
 
-    permission_classes = [IsAuthenticated]
     serializer_class = OrganizationSerializer
     lookup_field = "org_id"
     lookup_value_regex = r"[\w]+"
     ordering_fields = ["name", "created_at"]
     ordering = ["-created_at"]
+
+    # Read: all authenticated (inherited empty list) | Write: super admin only
+    write_roles = [UserRole.SUPER_ADMIN]
 
     def get_queryset(self):
         user = self.request.user
@@ -75,23 +79,15 @@ class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
             return Organization.objects.all()
 
         # Others see only their own org
-        user_org = getattr(user, "organization_id", None)
+        user_org = getattr(user, "organization", None)
         if user_org:
-            return Organization.objects.filter(id=user_org)
+            return Organization.objects.filter(id=user_org.id)
         return Organization.objects.none()
 
     def get_serializer_class(self):
         if self.action == "list":
             return OrganizationListSerializer
         return OrganizationSerializer
-
-    def check_permissions(self, request):
-        """Write operations: super admin only. Read: any authenticated."""
-        user = request.user
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
-                self.permission_denied(request, message="Only super admins can modify organizations.")
-        super().check_permissions(request)
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -142,6 +138,14 @@ class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
     @action(detail=True, methods=["post"], url_path="toggle-active")
     def toggle_active(self, request, org_id=None):
         """Toggle is_active on an organization."""
+        # Check write permission for this action
+        if getattr(request.user, "role", None) != UserRole.SUPER_ADMIN.value:
+            return error_response(
+                message="Only super admins can toggle organization status.",
+                code="FORBIDDEN",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
         instance = self.get_object()
         instance.is_active = not instance.is_active
         instance.save(update_fields=["is_active", "updated_at"])
@@ -157,7 +161,7 @@ class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
         description="Retrieve organization config. Org admin/employee see own org config.",
     )
     @action(detail=True, methods=["get", "patch"], url_path="config")
-    def config(self, request, org_id=None):
+    def config(self, request, org_id=None):  # noqa: ARG001 (org_id from URL pattern)
         """GET or PATCH the config for an organization."""
         instance = self.get_object()
         try:
@@ -207,22 +211,19 @@ class OrganizationProfileViewSet(BaseViewSet):
     PATCH /profile/ → update own org profile (org admin only; employees read-only)
     """
 
-    permission_classes = [IsAuthenticated]
     serializer_class = OrganizationProfileSerializer
+    http_method_names = ["get", "patch", "options"]  # Only allow GET, PATCH, OPTIONS
 
-    def check_permissions(self, request):
-        """Only GET and PATCH are allowed."""
-        if request.method not in ["GET", "PATCH"]:
-            self.permission_denied(request, message="Method not allowed.")
-        super().check_permissions(request)
+    # Read: all authenticated (inherited empty list) | Write: org admin + super admin
+    write_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
 
     def get_object(self):
         user = self.request.user
-        org_id = getattr(user, "organization_id", None)
-        if not org_id:
+        org = getattr(user, "organization", None)
+        if not org:
             return None
         try:
-            return Organization.objects.get(id=org_id)
+            return Organization.objects.get(id=org.id)
         except Organization.DoesNotExist:
             return None
 
@@ -238,16 +239,6 @@ class OrganizationProfileViewSet(BaseViewSet):
         return success_response(data=serializer.data)
 
     def partial_update(self, request, *args, **kwargs):
-        user = request.user
-        if getattr(user, "role", None) not in [
-            UserRole.SUPER_ADMIN.value,
-            UserRole.ORG_ADMIN.value,
-        ]:
-            return error_response(
-                message="Only org admins can update the organization profile.",
-                code="FORBIDDEN",
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
         instance = self.get_object()
         if not instance:
             return error_response(
