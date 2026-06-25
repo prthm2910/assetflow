@@ -14,7 +14,6 @@ class BaseSerializer(serializers.ModelSerializer):
     Base serializer for all AssetFlow models.
 
     Includes all BaseModel fields as read-only:
-    - id (UUID primary key)
     - created_at / updated_at (timestamps)
     - created_by / updated_by (user FKs)
     - is_active / is_deleted (status flags)
@@ -29,7 +28,6 @@ class BaseSerializer(serializers.ModelSerializer):
     """
 
     # BaseModel fields as read-only
-    id = serializers.UUIDField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)

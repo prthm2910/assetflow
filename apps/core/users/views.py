@@ -22,6 +22,7 @@ from apps.core.users.serializers import (
     LoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    TokenRefreshSerializer,
     UserCreateSerializer,
     UserListSerializer,
     UserRegistrationSerializer,
@@ -46,6 +47,24 @@ User = get_user_model()
         summary="Login",
         description="Authenticate user with email and password. Returns JWT access and refresh tokens.",
         request=LoginSerializer,
+        responses={200: None},
+    ),
+    refresh=extend_schema(
+        tags=["Authentication"],
+        summary="Refresh access token",
+        description="Exchange a valid refresh token for a new access token.",
+        request={
+            "application/json": {
+                "type": "object",
+                "required": ["refresh"],
+                "properties": {
+                    "refresh": {
+                        "type": "string",
+                        "description": "Valid refresh token from login",
+                    }
+                },
+            }
+        },
         responses={200: None},
     ),
     logout=extend_schema(
@@ -147,6 +166,19 @@ class AuthViewSet(viewsets.GenericViewSet):
             )
 
         return success_response(data=response_data, message="Login successful.")
+
+    @action(detail=False, methods=["post"], url_path="refresh", permission_classes=[AllowAny])
+    def refresh(self, request):
+        """Exchange a valid refresh token for a new access token."""
+        serializer = TokenRefreshSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refresh: "RefreshToken" = serializer.validated_data["refresh"]  # type: ignore
+        return success_response(
+            data={
+                "access": str(refresh.access_token),
+            },
+            message="Token refreshed successfully.",
+        )
 
     @action(detail=False, methods=["post"], url_path="logout", permission_classes=[IsAuthenticated])
     def logout(self, request):

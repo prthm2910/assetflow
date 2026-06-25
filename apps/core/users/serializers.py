@@ -155,6 +155,25 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class TokenRefreshSerializer(serializers.Serializer):
+    """Serializer for refreshing access tokens."""
+
+    refresh = serializers.CharField(
+        help_text="Valid refresh token issued during login."
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        from rest_framework_simplejwt.exceptions import TokenError
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        try:
+            refresh = RefreshToken(attrs["refresh"])
+            attrs["refresh"] = refresh
+        except TokenError:
+            raise serializers.ValidationError("Invalid or expired refresh token.")
+        return attrs
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     """Serializer for changing password with confirmation."""
 
