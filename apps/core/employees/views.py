@@ -1,0 +1,359 @@
+"""
+apps/core/employees/views.py — ViewSets for Department and Employee.
+"""
+
+from django.db import models
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from apps.base.constants import UserRole
+from apps.base.response import error_response, success_response
+from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
+from apps.core.employees.models import Department, Employee
+from apps.core.employees.serializers import (
+    DepartmentListSerializer,
+    DepartmentSerializer,
+    EmployeeCreateSerializer,
+    EmployeeListSerializer,
+    EmployeeSearchSerializer,
+    EmployeeSerializer,
+)
+
+
+class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
+    """
+    Department management within an organization.
+
+    - Super admin: full CRUD across all organizations
+    - Org admin: full CRUD within their organization
+    - Employee: read-only within their organization
+
+    Permissions:
+        - Read (GET): Any authenticated user in the org
+        - Write (POST/PUT/PATCH/DELETE): Org admin + Super admin
+    """
+
+    lookup_field = "dept_id"
+    lookup_value_regex = r"[\w]+"
+    ordering_fields = ["name", "created_at"]
+    ordering = ["name"]
+
+    write_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
+
+    def scope_for_employee(self, queryset):
+        """Employee sees only their own department."""
+        user = self.request.user
+        employee = getattr(user, "employee_profile", None)
+        if employee and employee.department:
+            return queryset.filter(id=employee.department.id)
+        return queryset.none()
+
+    def get_queryset(self):
+        user = self.request.user
+        if getattr(user, "role", None) == UserRole.SUPER_ADMIN.value:
+            return Department.objects.all()
+        user_org = getattr(user, "organization", None)
+        if user_org:
+            return Department.objects.filter(organization=user_org)
+        return Department.objects.none()
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return DepartmentListSerializer
+        return DepartmentSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response(data=serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return success_response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(
+            data=serializer.data,
+            message="Department created successfully.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(data=serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()  # soft-delete
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"], url_path="employees")
+    def employees(self, request, dept_id=None):  # noqa: ARG001
+        """List all employees in a department."""
+        department = self.get_object()
+        # Use EmployeeViewSet ordering fields (not DepartmentViewSet's)
+        queryset = (
+            Employee.objects.filter(department=department, is_deleted=False)
+            .select_related("user", "department")
+            .order_by(*EmployeeViewSet.ordering)
+        )
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = EmployeeListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = EmployeeListSerializer(queryset, many=True)
+        return success_response(data=serializer.data)
+
+
+class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
+    """
+    Employee management within an organization.
+
+    - Super admin: full CRUD across all organizations
+    - Org admin: full CRUD within their organization
+    - Employee: read-only within their organization
+
+    Custom actions:
+        - manager_chain: Get reporting chain up to root
+        - direct_reports: Get direct reports
+        - org_chart: Get nested org chart subtree
+        - change_manager: Reassign reporting line
+
+    Permissions:
+        - Read (GET): Any authenticated user in the org
+        - Write (POST/PUT/PATCH/DELETE): Org admin + Super admin
+    """
+
+    lookup_field = "employee_id"
+    lookup_value_regex = r"[\w]+"
+    ordering_fields = ["created_at", "designation", "join_date"]
+    ordering = ["-created_at"]
+
+    write_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
+
+    def get_queryset(self):
+        user = self.request.user
+        if getattr(user, "role", None) == UserRole.SUPER_ADMIN.value:
+            return Employee.objects.select_related(
+                "user", "department", "manager", "organization"
+            ).all()
+        user_org = getattr(user, "organization", None)
+        if user_org:
+            return Employee.objects.select_related(
+                "user", "department", "manager", "organization"
+            ).filter(organization=user_org)
+        return Employee.objects.none()
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return EmployeeListSerializer
+        if self.action == "create":
+            return EmployeeCreateSerializer
+        return EmployeeSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response(data=serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return success_response(data=serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(
+            data=serializer.data,
+            message="Employee created successfully.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(data=serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()  # soft-delete
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"], url_path="manager-chain")
+    def manager_chain(self, request, employee_id=None):
+        """Get the full reporting chain from this employee up to the top."""
+        employee = self.get_object()
+        chain = employee.get_manager_chain()
+        serializer = EmployeeListSerializer(chain, many=True)
+        return success_response(
+            data=serializer.data,
+            message=f"Manager chain for {employee.user.get_full_name()}.",
+        )
+
+    @action(detail=True, methods=["get"], url_path="direct-reports")
+    def direct_reports(self, request, employee_id=None):
+        """Get direct reports of this employee."""
+        employee = self.get_object()
+        reports = Employee.objects.filter(
+            manager=employee, is_deleted=False, is_active=True
+        )
+        page = self.paginate_queryset(reports)
+        if page is not None:
+            serializer = EmployeeListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = EmployeeListSerializer(reports, many=True)
+        return success_response(data=serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="org-chart")
+    def org_chart(self, request, employee_id=None):
+        """Get the nested org chart subtree rooted at this employee."""
+        employee = self.get_object()
+        tree = self._build_org_chart(employee)
+        return success_response(data=tree)
+
+    def _build_org_chart(self, employee):
+        """Recursively build org chart tree."""
+        children = []
+        for report in employee.direct_reports.filter(is_deleted=False, is_active=True):
+            children.append(self._build_org_chart(report))
+        return {
+            "employee": EmployeeListSerializer(employee).data,
+            "children": children,
+        }
+
+    @action(detail=True, methods=["post"], url_path="change-manager")
+    def change_manager(self, request, employee_id=None):
+        """Reassign this employee's manager."""
+        employee = self.get_object()
+        new_manager_id = request.data.get("manager_id")
+
+        if new_manager_id is None:
+            new_manager_id = request.data.get("manager")
+
+        if new_manager_id is None:
+            return error_response(
+                message="manager_id is required.",
+                code="VALIDATION_ERROR",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Prevent self-management
+        if str(new_manager_id) == str(employee.id):
+            return error_response(
+                message="An employee cannot be their own manager.",
+                code="VALIDATION_ERROR",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate manager belongs to same org
+        try:
+            new_manager = Employee.objects.get(id=new_manager_id, is_deleted=False)
+        except Employee.DoesNotExist:
+            return error_response(
+                message="Manager not found.",
+                code="NOT_FOUND",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        if new_manager.organization != employee.organization:
+            return error_response(
+                message="Manager must belong to the same organization.",
+                code="CROSS_TENANT",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Detect cycles
+        if self._would_create_cycle(employee, new_manager):
+            return error_response(
+                message="Cannot set this manager — would create a reporting cycle.",
+                code="CYCLE_DETECTED",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        employee.manager = new_manager
+        employee.save(update_fields=["manager", "updated_at"])
+        serializer = EmployeeSerializer(employee)
+        return success_response(
+            data=serializer.data,
+            message=f"Manager changed to {new_manager.user.get_full_name()}.",
+        )
+
+    def _would_create_cycle(self, employee, new_manager):
+        """Check if assigning new_manager would create a cycle."""
+        seen = set()
+        current = new_manager
+        while current:
+            if current.id == employee.id:
+                return True
+            if current.id in seen:
+                break
+            seen.add(current.id)
+            current = current.manager
+        return False
+
+    @action(detail=False, methods=["get"], url_path="search")
+    def search(self, request):
+        """
+        Search employees by name, email, designation, or employee_id.
+        Uses query param ?q=<search_term>
+        """
+        query = request.query_params.get("q", "").strip()
+        if not query:
+            return error_response(
+                message="Query parameter 'q' is required.",
+                code="VALIDATION_ERROR",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        base_qs = Employee.objects.filter(is_deleted=False).select_related(
+            "user", "department", "organization"
+        )
+
+        if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
+            user_org = getattr(user, "organization", None)
+            if user_org:
+                base_qs = base_qs.filter(organization=user_org)
+            else:
+                return success_response(data=[])
+
+        results = base_qs.filter(
+            models.Q(user__first_name__icontains=query)
+            | models.Q(user__last_name__icontains=query)
+            | models.Q(user__email__icontains=query)
+            | models.Q(employee_id__icontains=query)
+            | models.Q(designation__icontains=query)
+        )[:20]
+
+        serializer = EmployeeSearchSerializer(results, many=True)
+        return success_response(data=serializer.data)
