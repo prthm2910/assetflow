@@ -72,12 +72,7 @@ class Organization(BaseModel):
     def get_admin_user(self):
         """Return the designated admin user for this organization."""
         config = getattr(self, "config", None)
-        if config and config.admin_user_id:
-            try:
-                return settings.AUTH_USER_MODEL.objects.get(id=config.admin_user_id)
-            except settings.AUTH_USER_MODEL.DoesNotExist:
-                return None
-        return None
+        return config.admin_user if config else None
 
 
 class OrganizationConfig(BaseModel):

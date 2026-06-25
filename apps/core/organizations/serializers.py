@@ -46,6 +46,28 @@ class OrganizationConfigSerializer(BaseSerializer):
             "updated_at",
         ]
 
+    def validate_admin_user(self, value):
+        """Ensure admin_user belongs to this organization (cross-tenant prevention)."""
+        if value is None:
+            return value
+        if self.instance:
+            org = self.instance.organization
+            if value.organization != org:
+                raise serializers.ValidationError(
+                    "The designated admin user must belong to this organization."
+                )
+        return value
+
+    def validate_default_timezone(self, value):
+        """Validate IANA timezone string."""
+        import zoneinfo
+
+        try:
+            zoneinfo.ZoneInfo(value)
+        except Exception:
+            raise serializers.ValidationError("Invalid IANA timezone string.")
+        return value
+
 
 class OrganizationSerializer(BaseSerializer):
     """

@@ -185,9 +185,14 @@ class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
                 status_code=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = OrganizationConfigSerializer(config, data=request.data, partial=True)
+        serializer = OrganizationConfigSerializer(
+            config,
+            data=request.data,
+            partial=True,
+            context=self.get_serializer_context(),
+        )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(updated_by=request.user)
         return success_response(data=serializer.data)
 
 
@@ -211,6 +216,7 @@ class OrganizationProfileViewSet(BaseViewSet):
     PATCH /profile/ → update own org profile (org admin only; employees read-only)
     """
 
+    queryset = Organization.objects.all()
     serializer_class = OrganizationProfileSerializer
     http_method_names = ["get", "patch", "options"]  # Only allow GET, PATCH, OPTIONS
 
