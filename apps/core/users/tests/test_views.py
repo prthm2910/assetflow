@@ -55,6 +55,33 @@ class TestAuthViewSet:
         assert "refresh" in response.data["data"]
         assert "user" not in response.data["data"]  # No user data in login response
 
+    def test_refresh_token_success(self, api_client, user):
+        """POST /api/v1/users/auth/refresh/ should return a new access token."""
+        # First login to get tokens
+        login_resp = api_client.post(
+            "/api/v1/users/auth/login/",
+            {"email": user.email, "password": "testpass123"},
+        )
+        refresh_token = login_resp.data["data"]["refresh"]
+
+        # Refresh the access token
+        response = api_client.post(
+            "/api/v1/users/auth/refresh/",
+            {"refresh": refresh_token},
+        )
+        assert response.status_code == 200
+        assert "data" in response.data
+        assert "access" in response.data["data"]
+        assert response.data["data"]["access"] != login_resp.data["data"]["access"]
+
+    def test_refresh_token_invalid(self, api_client):
+        """POST /api/v1/users/auth/refresh/ with invalid token should fail."""
+        response = api_client.post(
+            "/api/v1/users/auth/refresh/",
+            {"refresh": "invalid-token"},
+        )
+        assert response.status_code == 400
+
     def test_login_invalid_credentials(self, api_client, user):
         """Login with wrong password should fail."""
         response = api_client.post(
