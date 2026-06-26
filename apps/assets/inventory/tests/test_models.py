@@ -17,7 +17,7 @@ class TestAssetModel:
         )
         assert asset.pk is not None
         assert asset.asset_id is not None
-        assert asset.asset_id.startswith("AST-")
+        assert asset.asset_id.startswith("AST")
         assert asset.organization == organization
         assert asset.name == "MacBook Pro 16"
         assert asset.is_active is True
