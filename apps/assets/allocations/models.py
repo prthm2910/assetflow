@@ -84,9 +84,23 @@ class Allocation(BaseModel):
             models.Index(fields=["asset", "returned_at"]),
             models.Index(fields=["employee"]),
         ]
+        constraints = [
+            # Prevent double-allocation at DB level
+            models.UniqueConstraint(
+                fields=["asset"],
+                condition=models.Q(returned_at__isnull=True),
+                name="unique_active_allocation",
+            )
+        ]
 
     def __str__(self):
-        return f"{self.asset.name} -> {self.employee.user.get_full_name()} ({self.alloc_id})"
+        asset_name = self.asset.name if self.asset else "Unknown Asset"
+        emp_name = (
+            self.employee.user.get_full_name()
+            if self.employee and getattr(self.employee, "user", None)
+            else "Unknown Employee"
+        )
+        return f"{asset_name} -> {emp_name} ({self.alloc_id})"
 
     @property
     def is_current(self):
