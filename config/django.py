@@ -24,6 +24,7 @@ LOCAL_APPS = [
     "apps.core.employees",
     "apps.assets.categories",
     "apps.assets.inventory",
+    "apps.assets.allocations",
 ]
 
 # ==============================================================================
