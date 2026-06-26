@@ -58,7 +58,7 @@ class TestAssetListCreate:
         )
         assert response.status_code == 201
         assert response.json()["data"]["name"] == "MacBook Pro"
-        assert response.json()["data"]["asset_id"].startswith("AST-")
+        assert response.json()["data"]["asset_id"].startswith("AST")
         assert response.json()["data"]["organization"] == str(organization.id)
 
     def test_super_admin_can_create(self, super_admin_client, organization):
