@@ -325,6 +325,37 @@ def second_employee(transactional_db, organization, department):
 
 
 # ---------------------------------------------------------------------------
+# Asset request fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def second_asset_category(transactional_db, organization):
+    """Create a second asset category within the organization (for cross-category tests)."""
+    from apps.assets.categories.models import AssetCategory
+
+    return AssetCategory.objects.create(
+        organization=organization,
+        name="Monitors",
+        description="External displays",
+    )
+
+
+@pytest.fixture
+def asset_request(transactional_db, organization, employee, asset_category):
+    """Create a pending asset request by an employee."""
+    from apps.assets.requests.models import AssetRequest
+
+    return AssetRequest.objects.create(
+        organization=organization,
+        requested_by=employee,
+        asset_category=asset_category,
+        reason="Need a laptop for development work",
+        priority="medium",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Authenticated client fixtures — APIClient pre-authenticated per role
 # ---------------------------------------------------------------------------
 
