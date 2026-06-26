@@ -42,14 +42,14 @@ class TestAssetModel:
         )
         assert asset.assigned_to == employee
 
-    def test_asset_sequential_codes(self, organization):
-        """Each new asset gets an incrementing code for the same org/year."""
+    def test_asset_unique_codes(self, organization):
+        """Each new asset gets a unique HRID (AST + 6 random chars)."""
+        import re
         a1 = Asset.objects.create(organization=organization, name="Asset 1")
         a2 = Asset.objects.create(organization=organization, name="Asset 2")
         a3 = Asset.objects.create(organization=organization, name="Asset 3")
-        # Codes should be sequential: AST-YYYY-NNNNN
-        import re
-        assert re.match(r"AST-\d{4}-\d{5}", a1.asset_id)
+        # Codes should be unique: AST + 6 alphanumeric chars
+        assert re.match(r"AST[A-Z0-9]{6}$", a1.asset_id)
         assert a1.asset_id != a2.asset_id
         assert a2.asset_id != a3.asset_id
 
