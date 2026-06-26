@@ -87,7 +87,7 @@ def org_admin_user(transactional_db, organization):
 
 @pytest.fixture
 def super_admin_user(db):
-    """Super admin user."""
+    """Super admin user (no organization — super admins are platform-level)."""
     from apps.base.constants import UserRole
 
     return User.objects.create_user(
@@ -240,6 +240,87 @@ def employee_with_manager(
         manager=manager_employee,
         designation="Junior Engineer",
         employee_number="EMP-003",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Asset fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def asset_category(transactional_db, organization):
+    """Create a test asset category within the organization."""
+    from apps.assets.categories.models import AssetCategory
+
+    return AssetCategory.objects.create(
+        organization=organization,
+        name="Laptops",
+        description="Laptop computers",
+    )
+
+
+@pytest.fixture
+def asset(transactional_db, organization, asset_category):
+    """Create a test asset within the organization (status=available)."""
+    from apps.assets.inventory.models import Asset
+
+    return Asset.objects.create(
+        organization=organization,
+        category=asset_category,
+        name="MacBook Pro 16",
+        description="Development laptop",
+        serial_number="C02XG1YJHD6P",
+        brand="Apple",
+        model_name="MacBook Pro 16",
+    )
+
+
+@pytest.fixture
+def allocated_asset(transactional_db, organization, asset_category, employee):
+    """Create an already-allocated asset (for tests that need an allocated asset)."""
+    from apps.assets.inventory.models import Asset
+    from apps.assets.allocations.models import Allocation
+
+    asset = Asset.objects.create(
+        organization=organization,
+        category=asset_category,
+        name="Allocated Laptop",
+        status="allocated",
+    )
+    Allocation.objects.create(
+        organization=organization,
+        asset=asset,
+        employee=employee,
+    )
+    return asset
+
+
+# ---------------------------------------------------------------------------
+# Second employee fixture (for transfer tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def second_employee(transactional_db, organization, department):
+    """Create a second employee within the same organization."""
+    from apps.core.employees.models import Employee
+
+    user = User.objects.create_user(
+        username="second_emp",
+        email="second_emp@test.com",
+        password="testpass123",
+        first_name="Second",
+        last_name="Employee",
+        role="employee",
+        organization_id=organization.id,
+    )
+    return Employee.objects.create(
+        organization=organization,
+        user=user,
+        department=department,
+        designation="QA Engineer",
+        employee_number="EMP-004",
     )
 
 
