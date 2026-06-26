@@ -8,6 +8,6 @@ from apps.assets.inventory.views import AssetViewSet
 
 
 router = DefaultRouter()
-router.register(r"", AssetViewSet, basename="inventory-asset")
+router.register(r"inventory", AssetViewSet, basename="inventory-asset")
 
 urlpatterns = router.urls

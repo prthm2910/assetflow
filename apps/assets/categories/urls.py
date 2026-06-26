@@ -8,6 +8,6 @@ from apps.assets.categories.views import AssetCategoryViewSet
 
 
 router = DefaultRouter()
-router.register(r"asset-categories", AssetCategoryViewSet, basename="assetcategory")
+router.register(r"categories", AssetCategoryViewSet, basename="assetcategory")
 
 urlpatterns = router.urls
