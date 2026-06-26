@@ -19,10 +19,10 @@ class AllocationFilterSet(BaseFilterSet):
         field_name="employee__emp_id",
         label="Employee HRID (e.g. EMP4X9P2)",
     )
-    is_active = django_filters.BooleanFilter(
+    is_current = django_filters.BooleanFilter(
         field_name="returned_at",
         lookup_expr="isnull",
-        label="Is active (true = active, false = returned)",
+        label="Is current (true = active, false = returned)",
     )
     status = django_filters.CharFilter(
         method="filter_status",
@@ -31,7 +31,7 @@ class AllocationFilterSet(BaseFilterSet):
 
     class Meta:
         model = Allocation
-        fields = ["asset_id", "employee_id", "is_active"]
+        fields = ["asset_id", "employee_id", "is_current"]
 
     def filter_status(self, queryset, name, value):
         if value == "active":
