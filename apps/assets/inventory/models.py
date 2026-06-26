@@ -3,50 +3,37 @@ apps/assets/inventory/models.py — Asset model for inventory management.
 """
 
 from django.db import models
-from django.utils import timezone
 
 from apps.base.constants import AssetStatus
 from apps.base.models import BaseModel
-
-
-def _generate_asset_code(model_class, organization_id: str) -> str:
-    """
-    Generate a sequential asset ID: AST-{year}-{count:05d}.
-
-    Counts ALL assets across the entire database (including soft-deleted) with
-    this year's prefix to ensure global uniqueness. Asset IDs are globally
-    unique across all organizations, not per-org.
-    """
-    year = timezone.now().year
-    manager = getattr(model_class, "all_objects", model_class.objects)
-    prefix = f"AST-{year}-"
-
-    count = manager.filter(asset_id__startswith=prefix).count()
-
-    return f"AST-{year}-{(count + 1):05d}"
 
 
 class Asset(BaseModel):
     """
     Asset tracked in the inventory system.
 
-    Each asset has a unique sequential code (AST-YYYY-NNNNN), belongs to one
+    Each asset has a unique HRID (AST + random chars), belongs to one
     organization, optionally belongs to a category (via AssetCategory), and can
     be assigned to one employee.
 
     Inherits from BaseModel:
     - UUID primary key, org FK, created_at / updated_at / created_by / updated_by
     - is_active, is_deleted, deleted_at (soft delete)
-    - Soft-delete overrides .delete() to set deleted_at
+    - Auto HRID generation via _display_id_prefix / _display_id_field
     """
 
-    # Sequential asset ID (AST-2026-00001) — set automatically on first save
+    # HRID config — BaseModel.save() auto-generates asset_id via generate_unique_id()
+    _display_id_prefix = "AST"
+    _display_id_field = "asset_id"
+
+    # Human-readable asset ID (AST + random chars, e.g. AST7K3M9)
+    # — set automatically by BaseModel.save() on first insert
     asset_id = models.CharField(
         max_length=20,
         unique=True,
         editable=False,
         null=True,
-        help_text="Auto-generated sequential asset ID (e.g., AST-2026-00001)",
+        help_text="Auto-generated HRID (e.g., AST7K3M9)",
     )
 
     # Organization FK — row-level isolation
@@ -147,13 +134,4 @@ class Asset(BaseModel):
         ]
 
     def __str__(self):
-        return f"{self.name} ({self.asset_code})"
-
-    def __str__(self):
         return f"{self.name} ({self.asset_id})"
-
-    def save(self, *args, **kwargs):
-        """Auto-generate sequential asset_id if not already set."""
-        if not self.asset_id:
-            self.asset_id = _generate_asset_code(self.__class__, self.organization_id)
-        super().save(*args, **kwargs)
