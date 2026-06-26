@@ -16,7 +16,7 @@ class TestAssetCategoryListCreate:
     ):
         AssetCategory.objects.create(organization=organization, name="Laptops")
         AssetCategory.objects.create(organization=second_organization, name="Desktops")
-        response = super_admin_client.get("/api/v1/asset-categories/")
+        response = super_admin_client.get("/api/v1/assets/categories/")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["count"] == 2
@@ -26,7 +26,7 @@ class TestAssetCategoryListCreate:
     ):
         AssetCategory.objects.create(organization=organization, name="Laptops")
         AssetCategory.objects.create(organization=second_organization, name="Desktops")
-        response = org_admin_client.get("/api/v1/asset-categories/")
+        response = org_admin_client.get("/api/v1/assets/categories/")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["count"] == 1
@@ -37,17 +37,17 @@ class TestAssetCategoryListCreate:
     ):
         AssetCategory.objects.create(organization=organization, name="Laptops")
         AssetCategory.objects.create(organization=second_organization, name="Desktops")
-        response = employee_client.get("/api/v1/asset-categories/")
+        response = employee_client.get("/api/v1/assets/categories/")
         assert response.status_code == 200
         assert response.json()["data"]["count"] == 1
 
     def test_unauthenticated_denied(self, api_client):
-        response = api_client.get("/api/v1/asset-categories/")
+        response = api_client.get("/api/v1/assets/categories/")
         assert response.status_code == 401
 
     def test_org_admin_can_create(self, org_admin_client, organization):
         response = org_admin_client.post(
-            "/api/v1/asset-categories/",
+            "/api/v1/assets/categories/",
             {"name": "Laptops", "description": "Portable computers", "organization": str(organization.id)},
         )
         assert response.status_code == 201
@@ -56,14 +56,14 @@ class TestAssetCategoryListCreate:
 
     def test_super_admin_can_create(self, super_admin_client, organization):
         response = super_admin_client.post(
-            "/api/v1/asset-categories/",
+            "/api/v1/assets/categories/",
             {"name": "Monitors", "organization": str(organization.id)},
         )
         assert response.status_code == 201
 
     def test_employee_cannot_create(self, employee_client, organization):
         response = employee_client.post(
-            "/api/v1/asset-categories/",
+            "/api/v1/assets/categories/",
             {"name": "Laptops", "organization": str(organization.id)},
         )
         assert response.status_code == 403
@@ -75,7 +75,7 @@ class TestAssetCategoryRetrieveUpdateDestroy:
 
     def test_retrieve_category(self, org_admin_client, organization):
         cat = AssetCategory.objects.create(organization=organization, name="Laptops")
-        response = org_admin_client.get(f"/api/v1/asset-categories/{cat.cat_id}/")
+        response = org_admin_client.get(f"/api/v1/assets/categories/{cat.cat_id}/")
         assert response.status_code == 200
         assert response.json()["data"]["name"] == "Laptops"
         assert response.json()["data"]["cat_id"] == cat.cat_id
@@ -83,7 +83,7 @@ class TestAssetCategoryRetrieveUpdateDestroy:
     def test_update_category(self, org_admin_client, organization):
         cat = AssetCategory.objects.create(organization=organization, name="Laptops")
         response = org_admin_client.patch(
-            f"/api/v1/asset-categories/{cat.cat_id}/",
+            f"/api/v1/assets/categories/{cat.cat_id}/",
             {"name": "Gaming Laptops"},
         )
         assert response.status_code == 200
@@ -91,14 +91,14 @@ class TestAssetCategoryRetrieveUpdateDestroy:
 
     def test_delete_category(self, org_admin_client, organization):
         cat = AssetCategory.objects.create(organization=organization, name="Laptops")
-        response = org_admin_client.delete(f"/api/v1/asset-categories/{cat.cat_id}/")
+        response = org_admin_client.delete(f"/api/v1/assets/categories/{cat.cat_id}/")
         assert response.status_code == 204
         cat.refresh_from_db()
         assert cat.is_deleted is True
 
     def test_employee_cannot_delete(self, employee_client, organization):
         cat = AssetCategory.objects.create(organization=organization, name="Laptops")
-        response = employee_client.delete(f"/api/v1/asset-categories/{cat.cat_id}/")
+        response = employee_client.delete(f"/api/v1/assets/categories/{cat.cat_id}/")
         assert response.status_code == 403
 
 
@@ -110,7 +110,7 @@ class TestAssetCategoryTree:
         """Tree action returns only root categories (parent=null)."""
         parent = AssetCategory.objects.create(organization=organization, name="Computers")
         AssetCategory.objects.create(organization=organization, name="Laptops", parent=parent)
-        response = org_admin_client.get("/api/v1/asset-categories/tree/")
+        response = org_admin_client.get("/api/v1/assets/categories/tree/")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["count"] == 1
@@ -125,7 +125,7 @@ class TestAssetCategoryTree:
         AssetCategory.objects.create(
             organization=organization, name="Gaming Laptops", parent=child
         )
-        response = org_admin_client.get("/api/v1/asset-categories/tree/")
+        response = org_admin_client.get("/api/v1/assets/categories/tree/")
         assert response.status_code == 200
         results = response.json()["data"]["results"]
         assert len(results) == 1
@@ -143,7 +143,7 @@ class TestAssetCategoryTree:
             organization=organization, name="Gaming Laptops", parent=child
         )
         response = org_admin_client.get(
-            f"/api/v1/asset-categories/{parent.cat_id}/descendants/"
+            f"/api/v1/assets/categories/{parent.cat_id}/descendants/"
         )
         assert response.status_code == 200
         names = [c["name"] for c in response.json()["data"]]
@@ -161,7 +161,7 @@ class TestAssetCategoryMultiTenant:
         """Org admin cannot see or modify categories from other orgs."""
         AssetCategory.objects.create(organization=organization, name="Laptops")
         AssetCategory.objects.create(organization=second_organization, name="Desktops")
-        response = org_admin_client.get("/api/v1/asset-categories/")
+        response = org_admin_client.get("/api/v1/assets/categories/")
         assert response.json()["data"]["count"] == 1
 
     def test_cross_org_retrieve_returns_404(self, org_admin_client, second_organization):
@@ -170,6 +170,6 @@ class TestAssetCategoryMultiTenant:
             organization=second_organization, name="Desktops"
         )
         response = org_admin_client.get(
-            f"/api/v1/asset-categories/{other_cat.cat_id}/"
+            f"/api/v1/assets/categories/{other_cat.cat_id}/"
         )
         assert response.status_code == 404

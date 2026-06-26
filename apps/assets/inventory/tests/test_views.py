@@ -16,7 +16,7 @@ class TestAssetListCreate:
     ):
         Asset.objects.create(organization=organization, name="Laptop A")
         Asset.objects.create(organization=second_organization, name="Laptop B")
-        response = super_admin_client.get("/api/v1/assets/")
+        response = super_admin_client.get("/api/v1/assets/inventory/")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["count"] == 2
@@ -26,7 +26,7 @@ class TestAssetListCreate:
     ):
         Asset.objects.create(organization=organization, name="Laptop A")
         Asset.objects.create(organization=second_organization, name="Laptop B")
-        response = org_admin_client.get("/api/v1/assets/")
+        response = org_admin_client.get("/api/v1/assets/inventory/")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["count"] == 1
@@ -37,17 +37,17 @@ class TestAssetListCreate:
     ):
         Asset.objects.create(organization=organization, name="Laptop A")
         Asset.objects.create(organization=second_organization, name="Laptop B")
-        response = employee_client.get("/api/v1/assets/")
+        response = employee_client.get("/api/v1/assets/inventory/")
         assert response.status_code == 200
         assert response.json()["data"]["count"] == 1
 
     def test_unauthenticated_denied(self, api_client):
-        response = api_client.get("/api/v1/assets/")
+        response = api_client.get("/api/v1/assets/inventory/")
         assert response.status_code == 401
 
     def test_org_admin_can_create(self, org_admin_client, organization):
         response = org_admin_client.post(
-            "/api/v1/assets/",
+            "/api/v1/assets/inventory/",
             {
                 "name": "MacBook Pro",
                 "description": "Development laptop",
@@ -63,7 +63,7 @@ class TestAssetListCreate:
 
     def test_super_admin_can_create(self, super_admin_client, organization):
         response = super_admin_client.post(
-            "/api/v1/assets/",
+            "/api/v1/assets/inventory/",
             {"name": "Dell Monitor", "organization": str(organization.id)},
         )
         assert response.status_code == 201
@@ -71,7 +71,7 @@ class TestAssetListCreate:
 
     def test_employee_cannot_create(self, employee_client, organization):
         response = employee_client.post(
-            "/api/v1/assets/",
+            "/api/v1/assets/inventory/",
             {"name": "Unauthorized Asset", "organization": str(organization.id)},
         )
         assert response.status_code == 403
@@ -83,14 +83,14 @@ class TestAssetRetrieveUpdateDelete:
 
     def test_can_retrieve_asset(self, org_admin_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop X")
-        response = org_admin_client.get(f"/api/v1/assets/{asset.asset_id}/")
+        response = org_admin_client.get(f"/api/v1/assets/inventory/{asset.asset_id}/")
         assert response.status_code == 200
         assert response.json()["data"]["name"] == "Laptop X"
 
     def test_can_update_asset(self, org_admin_client, organization):
         asset = Asset.objects.create(organization=organization, name="Old Name")
         response = org_admin_client.put(
-            f"/api/v1/assets/{asset.asset_id}/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/",
             {
                 "name": "New Name",
                 "description": "Updated description",
@@ -104,7 +104,7 @@ class TestAssetRetrieveUpdateDelete:
     def test_can_partial_update_asset(self, org_admin_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop Y")
         response = org_admin_client.patch(
-            f"/api/v1/assets/{asset.asset_id}/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/",
             {"name": "Laptop Z Updated"},
         )
         assert response.status_code == 200
@@ -112,7 +112,7 @@ class TestAssetRetrieveUpdateDelete:
 
     def test_can_delete_asset(self, org_admin_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop D")
-        response = org_admin_client.delete(f"/api/v1/assets/{asset.asset_id}/")
+        response = org_admin_client.delete(f"/api/v1/assets/inventory/{asset.asset_id}/")
         assert response.status_code == 204
         asset.refresh_from_db()
         assert asset.is_deleted is True
@@ -120,14 +120,14 @@ class TestAssetRetrieveUpdateDelete:
     def test_employee_cannot_update(self, employee_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop E")
         response = employee_client.patch(
-            f"/api/v1/assets/{asset.asset_id}/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/",
             {"name": "Hacked Name"},
         )
         assert response.status_code == 403
 
     def test_employee_cannot_delete(self, employee_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop F")
-        response = employee_client.delete(f"/api/v1/assets/{asset.asset_id}/")
+        response = employee_client.delete(f"/api/v1/assets/inventory/{asset.asset_id}/")
         assert response.status_code == 403
 
 
@@ -138,7 +138,7 @@ class TestAssetChangeStatus:
     def test_change_status_valid(self, org_admin_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop S")
         response = org_admin_client.patch(
-            f"/api/v1/assets/{asset.asset_id}/change-status/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/change-status/",
             {"status": "maintenance"},
         )
         assert response.status_code == 200
@@ -147,7 +147,7 @@ class TestAssetChangeStatus:
     def test_change_status_invalid(self, org_admin_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop T")
         response = org_admin_client.patch(
-            f"/api/v1/assets/{asset.asset_id}/change-status/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/change-status/",
             {"status": "invalid_status"},
         )
         assert response.status_code == 400
@@ -155,7 +155,7 @@ class TestAssetChangeStatus:
     def test_change_status_requires_auth(self, api_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop U")
         response = api_client.patch(
-            f"/api/v1/assets/{asset.asset_id}/change-status/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/change-status/",
             {"status": "maintenance"},
         )
         assert response.status_code == 401
@@ -163,7 +163,7 @@ class TestAssetChangeStatus:
     def test_employee_cannot_change_status(self, employee_client, organization):
         asset = Asset.objects.create(organization=organization, name="Laptop V")
         response = employee_client.patch(
-            f"/api/v1/assets/{asset.asset_id}/change-status/",
+            f"/api/v1/assets/inventory/{asset.asset_id}/change-status/",
             {"status": "retired"},
         )
         assert response.status_code == 403
@@ -183,7 +183,7 @@ class TestAssetFiltering:
         Asset.objects.create(
             organization=organization, name="F-Avail-Monitor", status="available"
         )
-        response = org_admin_client.get("/api/v1/assets/?status=available")
+        response = org_admin_client.get("/api/v1/assets/inventory/?status=available")
         assert response.status_code == 200
         assert response.json()["data"]["count"] == 2
 
@@ -197,7 +197,7 @@ class TestAssetFiltering:
         Asset.objects.create(
             organization=organization, name="F-Avail-Monitor", status="available"
         )
-        response = org_admin_client.get("/api/v1/assets/?search=F-Avail")
+        response = org_admin_client.get("/api/v1/assets/inventory/?search=F-Avail")
         assert response.status_code == 200
         assert response.json()["data"]["count"] == 2
 
@@ -211,7 +211,7 @@ class TestAssetFiltering:
         Asset.objects.create(
             organization=organization, name="F-Avail-Monitor", status="available"
         )
-        response = org_admin_client.get("/api/v1/assets/?ordering=name")
+        response = org_admin_client.get("/api/v1/assets/inventory/?ordering=name")
         assert response.status_code == 200
         names = [r["name"] for r in response.json()["data"]["results"]]
         # Case-sensitive ordering: F-A < F-Av (ASCII: 'A'=65 < 'v'=118)
@@ -228,7 +228,7 @@ class TestAssetMultiTenant:
         """Org admin sees only their own org's assets."""
         Asset.objects.create(organization=organization, name="My Org Asset")
         Asset.objects.create(organization=second_organization, name="Other Org Asset")
-        response = org_admin_client.get("/api/v1/assets/")
+        response = org_admin_client.get("/api/v1/assets/inventory/")
         assert response.status_code == 200
         names = [r["name"] for r in response.json()["data"]["results"]]
         assert "My Org Asset" in names
@@ -242,7 +242,7 @@ class TestAssetMultiTenant:
             organization=second_organization, name="Other Asset"
         )
         response = org_admin_client.patch(
-            f"/api/v1/assets/{other_asset.asset_id}/",
+            f"/api/v1/assets/inventory/{other_asset.asset_id}/",
             {"name": "Hacked"},
         )
         assert response.status_code == 404
