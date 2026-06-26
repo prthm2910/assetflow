@@ -220,6 +220,7 @@ class AssetRequestViewSet(BaseViewSet):
         instance.reviewed_by = request.user
         instance.reviewed_at = now
         instance.review_notes = serializer.validated_data.get("review_notes", "")
+        instance.updated_by = request.user
         instance.save(
             update_fields=[
                 "status",
@@ -259,6 +260,7 @@ class AssetRequestViewSet(BaseViewSet):
         instance.reviewed_by = request.user
         instance.reviewed_at = now
         instance.review_notes = serializer.validated_data.get("review_notes", "")
+        instance.updated_by = request.user
         instance.save(
             update_fields=[
                 "status",
@@ -289,12 +291,14 @@ class AssetRequestViewSet(BaseViewSet):
         employee = getattr(user, "employee_profile", None)
 
         # Only the requester (not their manager) can cancel via this action.
-        # Managers use soft-delete (destroy) instead.
-        if employee and instance.requested_by_id != employee.id:
-            return Response(
-                {"error": "You can only cancel your own requests."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        # Managers use soft-delete (destroy) instead. Admins always pass via permission class.
+        role = getattr(user, "role", None)
+        if role not in (UserRole.SUPER_ADMIN.value, UserRole.ORG_ADMIN.value):
+            if employee and instance.requested_by_id != employee.id:
+                return Response(
+                    {"error": "You can only cancel your own requests."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         if instance.status != RequestStatus.PENDING.value:
             return Response(

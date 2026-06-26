@@ -62,7 +62,20 @@ class AssetRequestSerializer(BaseSerializer):
             "organization",
             "requested_by",
             "asset_category",
+            # Employees cannot bypass the formal workflow by patching status
+            "status",
         ]
+
+    def validate(self, attrs):
+        """Employees cannot modify review_notes via PATCH."""
+        request = self.context.get("request")
+        user = request.user if request else None
+        if user and getattr(user, "role", None) == UserRole.EMPLOYEE.value:
+            if "review_notes" in attrs and attrs["review_notes"]:
+                raise serializers.ValidationError(
+                    {"review_notes": "Employees cannot modify review notes."}
+                )
+        return attrs
 
     def get_requested_by_name(self, obj):
         if obj.requested_by and obj.requested_by.user:
