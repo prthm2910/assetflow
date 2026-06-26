@@ -78,9 +78,13 @@ class TestAllocationListCreate:
         self, employee_client, organization, employee, asset, second_employee
     ):
         """Employee sees only allocations assigned to their own employee record."""
+        # Use separate assets to avoid unique_active_allocation constraint
+        other_asset = Asset.objects.create(
+            organization=organization, name="Second Laptop"
+        )
         Allocation.objects.create(organization=organization, asset=asset, employee=employee)
         Allocation.objects.create(
-            organization=organization, asset=asset, employee=second_employee
+            organization=organization, asset=other_asset, employee=second_employee
         )
         response = employee_client.get("/api/v1/assets/allocations/")
         assert response.status_code == 200
@@ -349,11 +353,15 @@ class TestAllocationCurrent:
         """GET /allocations/current/ returns only unreturned allocations."""
         from django.utils import timezone
 
+        # Use separate assets to avoid unique_active_allocation constraint
+        other_asset = Asset.objects.create(
+            organization=organization, name="Returned Laptop"
+        )
         active = Allocation.objects.create(
             organization=organization, asset=asset, employee=employee
         )
         returned = Allocation.objects.create(
-            organization=organization, asset=asset, employee=employee
+            organization=organization, asset=other_asset, employee=employee
         )
         returned.returned_at = timezone.now()
         returned.save(update_fields=["returned_at"])
@@ -399,9 +407,13 @@ class TestAllocationFiltering:
         """Filter by status=active returns only unreturned allocations."""
         from django.utils import timezone
 
+        # Use separate assets to avoid unique_active_allocation constraint
+        other_asset = Asset.objects.create(
+            organization=organization, name="Returned Laptop"
+        )
         Allocation.objects.create(organization=organization, asset=asset, employee=employee)
         returned = Allocation.objects.create(
-            organization=organization, asset=asset, employee=employee
+            organization=organization, asset=other_asset, employee=employee
         )
         returned.returned_at = timezone.now()
         returned.save(update_fields=["returned_at"])
@@ -416,9 +428,13 @@ class TestAllocationFiltering:
         """Filter by status=returned returns only returned allocations."""
         from django.utils import timezone
 
+        # Use separate assets to avoid unique_active_allocation constraint
+        other_asset = Asset.objects.create(
+            organization=organization, name="Returned Laptop"
+        )
         Allocation.objects.create(organization=organization, asset=asset, employee=employee)
         returned = Allocation.objects.create(
-            organization=organization, asset=asset, employee=employee
+            organization=organization, asset=other_asset, employee=employee
         )
         returned.returned_at = timezone.now()
         returned.save(update_fields=["returned_at"])

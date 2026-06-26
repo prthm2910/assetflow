@@ -74,10 +74,14 @@ class TestAllocationModel:
     def test_allocation_unique_hrid(self, organization, employee, asset):
         """Each allocation gets a unique HRID."""
         import re
+        from apps.assets.inventory.models import Asset
 
         a1 = Allocation.objects.create(organization=organization, asset=asset, employee=employee)
-        a2 = Allocation.objects.create(organization=organization, asset=asset, employee=employee)
-        a3 = Allocation.objects.create(organization=organization, asset=asset, employee=employee)
+        # Use separate assets to avoid DB unique_active_allocation constraint
+        a2_asset = Asset.objects.create(organization=organization, name="Asset 2")
+        a3_asset = Asset.objects.create(organization=organization, name="Asset 3")
+        a2 = Allocation.objects.create(organization=organization, asset=a2_asset, employee=employee)
+        a3 = Allocation.objects.create(organization=organization, asset=a3_asset, employee=employee)
         # ALC + 6 alphanumeric chars
         assert re.match(r"ALC[A-Z0-9]{6}$", a1.alloc_id)
         assert a1.alloc_id != a2.alloc_id
