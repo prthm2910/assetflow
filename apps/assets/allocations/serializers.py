@@ -5,6 +5,7 @@ apps/assets/allocations/serializers.py — Serializers for Allocation.
 from rest_framework import serializers
 
 from apps.base.serializers import BaseSerializer
+from apps.base.constants import UserRole
 from apps.assets.inventory.models import Asset
 from apps.assets.inventory.serializers import AssetListSerializer
 from apps.assets.allocations.models import Allocation
@@ -58,6 +59,10 @@ class AllocationSerializer(BaseSerializer):
             "updated_by",
             "allocated_at",
             "is_current",
+            # Core fields cannot be modified after creation
+            "organization",
+            "asset",
+            "employee",
         ]
 
     def get_employee_name(self, obj):
@@ -143,7 +148,24 @@ class AllocationCreateSerializer(BaseSerializer):
         ]
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        user = request.user if request else None
         asset = attrs.get("asset")
+        employee = attrs.get("employee")
+
+        # Tenant isolation — non-super-admins can only allocate within their org
+        if user and getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
+            user_org = getattr(user, "organization", None)
+            if user_org:
+                if asset and asset.organization_id != user_org.id:
+                    raise serializers.ValidationError(
+                        {"asset": "This asset does not belong to your organization."}
+                    )
+                if employee and employee.organization_id != user_org.id:
+                    raise serializers.ValidationError(
+                        {"employee": "This employee does not belong to your organization."}
+                    )
+
         # Check for active allocation in DB (authoritative source)
         has_active_allocation = Allocation.objects.filter(
             asset=asset, returned_at__isnull=True

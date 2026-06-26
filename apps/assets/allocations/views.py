@@ -2,6 +2,7 @@
 apps/assets/allocations/views.py — ViewSets for Allocation.
 """
 
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -42,7 +43,11 @@ class AllocationViewSet(BaseViewSet):
     lookup_value_regex = r"[\w-]+"
     ordering_fields = ["allocated_at", "created_at", "asset__name", "employee__user__first_name"]
     ordering = ["-allocated_at"]
-    search_fields = ["asset__name", "asset__asset_id", "employee__user__first_name", "employee__user__last_name", "notes"]
+    search_fields = [
+        "asset__name", "asset__asset_id",
+        "employee__user__first_name", "employee__user__last_name",
+        "notes",
+    ]
 
     filterset_class = AllocationFilterSet
     write_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
@@ -77,7 +82,7 @@ class AllocationViewSet(BaseViewSet):
             return success_response(
                 data=self.get_paginated_response(serializer.data).data
             )
-        serializer = AllocationListSerializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return success_response(data=serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
@@ -106,17 +111,16 @@ class AllocationViewSet(BaseViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
 
-        # Set organization and allocated_by — serializer.save() accepts kwargs
-        allocation = serializer.save(
-            organization=alloc_org,
-            allocated_by=request.user,
-        )
-
-        # Update asset status to 'allocated'
-        asset = allocation.asset
-        update_fields = ["status", "updated_at", "updated_by"]
-        asset.status = AssetStatus.ALLOCATED.value
-        asset.save(update_fields=update_fields)
+        # All DB writes in a single transaction
+        with transaction.atomic():
+            allocation = serializer.save(
+                organization=alloc_org,
+                allocated_by=request.user,
+            )
+            asset = allocation.asset
+            update_fields = ["status", "updated_at", "updated_by"]
+            asset.status = AssetStatus.ALLOCATED.value
+            asset.save(update_fields=update_fields)
 
         return success_response(
             data=AllocationSerializer(allocation).data,
@@ -140,23 +144,24 @@ class AllocationViewSet(BaseViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        # If destroying an active allocation, revert asset status to 'available'
-        if instance.is_active:
+        # is_current checks returned_at — not the BaseModel soft-delete flag
+        if instance.is_current:
             asset = instance.asset
             update_fields = ["status", "updated_at"]
             if hasattr(asset, "updated_by"):
                 asset.updated_by = request.user
                 update_fields.append("updated_by")
             asset.status = AssetStatus.AVAILABLE.value
-            asset.save(update_fields=update_fields)
-        instance.delete()  # soft-delete
+            with transaction.atomic():
+                asset.save(update_fields=update_fields)
+                instance.delete()  # soft-delete
+        else:
+            instance.delete()  # soft-delete
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"], url_path="current")
     def current(self, request):
-        """
-        List only active (unreturned) allocations.
-        """
+        """List only active (unreturned) allocations."""
         queryset = self.filter_queryset(
             self.get_queryset().filter(returned_at__isnull=True)
         )
@@ -190,22 +195,39 @@ class AllocationViewSet(BaseViewSet):
 
         new_employee = serializer.validated_data["employee"]
         transfer_notes = serializer.validated_data.get("notes", "")
+
+        # Cross-org guard — target employee must be in the same org as the allocation
+        if new_employee.organization != current_allocation.organization:
+            return Response(
+                {"error": "Cannot transfer to an employee of a different organization."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         now = timezone.now()
 
-        # Close the current allocation
-        current_allocation.returned_at = now
-        update_fields = ["returned_at", "updated_at", "updated_by"]
-        current_allocation.updated_by = request.user
-        current_allocation.save(update_fields=update_fields)
-
-        # Create new allocation for the new employee
-        new_allocation = Allocation.objects.create(
-            organization=current_allocation.organization,
-            asset=current_allocation.asset,
-            employee=new_employee,
-            allocated_by=request.user,
-            notes=transfer_notes or f"Transferred from {current_allocation.employee.user.get_full_name()}.",
+        # Defensive: safe employee name for notes
+        current_emp_name = (
+            current_allocation.employee.user.get_full_name()
+            if getattr(current_allocation.employee, "user", None)
+            else "Unknown Employee"
         )
+
+        with transaction.atomic():
+            # Close the current allocation
+            current_allocation.returned_at = now
+            current_allocation.updated_by = request.user
+            current_allocation.save(
+                update_fields=["returned_at", "updated_at", "updated_by"]
+            )
+
+            # Create new allocation for the new employee
+            new_allocation = Allocation.objects.create(
+                organization=current_allocation.organization,
+                asset=current_allocation.asset,
+                employee=new_employee,
+                allocated_by=request.user,
+                notes=transfer_notes or f"Transferred from {current_emp_name}.",
+            )
 
         return success_response(
             data=AllocationSerializer(new_allocation).data,
@@ -232,23 +254,24 @@ class AllocationViewSet(BaseViewSet):
         notes = request.data.get("notes", "")
         now = timezone.now()
 
-        # Close the allocation
-        instance.returned_at = now
-        update_fields = ["returned_at", "updated_at", "updated_by"]
-        instance.updated_by = request.user
-        if notes:
-            instance.notes = f"{instance.notes}\n{notes}".strip()
-            update_fields.append("notes")
-        instance.save(update_fields=update_fields)
+        with transaction.atomic():
+            # Close the allocation
+            instance.returned_at = now
+            instance.updated_by = request.user
+            update_fields = ["returned_at", "updated_at", "updated_by"]
+            if notes:
+                instance.notes = f"{instance.notes}\n{notes}".strip()
+                update_fields.append("notes")
+            instance.save(update_fields=update_fields)
 
-        # Revert asset status to 'available'
-        asset = instance.asset
-        update_fields = ["status", "updated_at"]
-        if hasattr(asset, "updated_by"):
-            asset.updated_by = request.user
-            update_fields.append("updated_by")
-        asset.status = AssetStatus.AVAILABLE.value
-        asset.save(update_fields=update_fields)
+            # Revert asset status to 'available'
+            asset = instance.asset
+            update_fields = ["status", "updated_at"]
+            if hasattr(asset, "updated_by"):
+                asset.updated_by = request.user
+                update_fields.append("updated_by")
+            asset.status = AssetStatus.AVAILABLE.value
+            asset.save(update_fields=update_fields)
 
         return success_response(
             data=AllocationSerializer(instance).data,
