@@ -72,12 +72,18 @@ class AssetViewSet(BaseViewSet):
         return success_response(data=serializer.data)
 
     def create(self, request, *args, **kwargs):
-        # Auto-fill organization from user context if not provided
+        # Enforce tenant isolation: non-super-admins can only create assets
+        # for their own organization.
         data = request.data.copy()
         user = request.user
         user_org = getattr(user, "organization", None)
-        if user_org and "organization" not in data:
+
+        if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
+            if user_org:
+                data["organization"] = str(user_org.id)
+        elif user_org and "organization" not in data:
             data["organization"] = str(user_org.id)
+
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
