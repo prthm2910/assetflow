@@ -125,7 +125,13 @@ class AssetViewSet(BaseViewSet):
         serializer = AssetStatusChangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance.status = serializer.validated_data["status"]
-        instance.save(update_fields=["status", "updated_at"])
+
+        update_fields = ["status", "updated_at"]
+        if hasattr(instance, "updated_by"):
+            instance.updated_by = request.user
+            update_fields.append("updated_by")
+
+        instance.save(update_fields=update_fields)
         return success_response(
             data=AssetSerializer(instance).data,
             message=f"Asset status changed to {instance.status}.",
