@@ -14,6 +14,7 @@ from rest_framework.routers import DefaultRouter
 from apps.assets.categories.urls import urlpatterns as cat_urls
 from apps.assets.inventory.urls import urlpatterns as inv_urls
 from apps.assets.allocations.urls import urlpatterns as alloc_urls
+from apps.assets.requests.urls import urlpatterns as req_urls
 
 
-urlpatterns = cat_urls + inv_urls + alloc_urls
+urlpatterns = cat_urls + inv_urls + alloc_urls + req_urls
