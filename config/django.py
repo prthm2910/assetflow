@@ -25,6 +25,7 @@ LOCAL_APPS = [
     "apps.assets.categories",
     "apps.assets.inventory",
     "apps.assets.allocations",
+    "apps.assets.requests",
 ]
 
 # ==============================================================================
