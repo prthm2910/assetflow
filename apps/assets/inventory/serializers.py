@@ -61,6 +61,11 @@ class AssetSerializer(BaseSerializer):
             return obj.assigned_to.user.get_full_name()
         return None
 
+    def validate_organization(self, value):
+        if self.instance and self.instance.organization_id != value.id:
+            raise serializers.ValidationError("Organization cannot be changed after creation.")
+        return value
+
 
 class AssetListSerializer(BaseSerializer):
     """Lightweight serializer for list views."""
