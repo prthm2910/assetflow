@@ -20,7 +20,7 @@ class IncidentSerializer(BaseSerializer):
         source="assigned_to.employee_id", read_only=True,
     )
     asset_name = serializers.CharField(source="asset.name", read_only=True)
-    asset_id_hrid = serializers.CharField(source="asset.asset_id", read_only=True)
+    asset_id = serializers.CharField(source="asset.asset_id", read_only=True)
 
     class Meta:
         model = Incident
@@ -38,7 +38,7 @@ class IncidentSerializer(BaseSerializer):
             "organization",
             "asset",
             "asset_name",
-            "asset_id_hrid",
+            "asset_id",
             "reported_by",
             "reported_by_name",
             "reported_by_employee_id",
