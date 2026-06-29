@@ -8,7 +8,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from apps.base.constants import UserRole, RequestStatus
+from apps.base.constants import UserRole
+from apps.assets.requests.constants import RequestStatus
 from apps.base.permissions import RoleBasedPermission
 from apps.base.response import success_response
 from apps.base.viewsets import BaseViewSet

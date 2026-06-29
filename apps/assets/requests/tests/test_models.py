@@ -6,7 +6,7 @@ import pytest
 import re
 
 from apps.assets.requests.models import AssetRequest
-from apps.base.constants import RequestPriority, RequestStatus
+from apps.assets.requests.constants import RequestPriority, RequestStatus
 
 
 @pytest.mark.django_db

@@ -5,7 +5,7 @@ apps/assets/requests/tests/test_views.py — API tests for AssetRequest endpoint
 import pytest
 
 from apps.assets.requests.models import AssetRequest
-from apps.base.constants import RequestStatus
+from apps.assets.requests.constants import RequestStatus
 
 
 # ---------------------------------------------------------------------------
