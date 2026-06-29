@@ -39,90 +39,13 @@ class BaseEnum(Enum):
 
 # ==============================================================================
 # User Roles
+#
+# Kept in base — used by base/permissions.py (RoleBasedPermission),
+# base/viewsets.py (scope_queryset), and every app's permission checks.
+# Moving to core/users would create a circular dependency:
+#   base → users (import UserRole) → base (import BaseModel).
 # ==============================================================================
 class UserRole(BaseEnum):
     SUPER_ADMIN = "super_admin"
     ORG_ADMIN = "org_admin"
     EMPLOYEE = "employee"
-
-
-# ==============================================================================
-# Asset Lifecycle
-# ==============================================================================
-class AssetStatus(BaseEnum):
-    PROCURED = "procured"
-    AVAILABLE = "available"
-    ALLOCATED = "allocated"
-    MAINTENANCE = "maintenance"
-    RETIRED = "retired"
-
-
-# ==============================================================================
-# Request Workflow
-# ==============================================================================
-class RequestStatus(BaseEnum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    FULFILLED = "fulfilled"
-    CANCELLED = "cancelled"
-
-
-class RequestPriority(BaseEnum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-
-
-# ==============================================================================
-# Incident Workflow
-# ==============================================================================
-class IncidentStatus(BaseEnum):
-    REPORTED = "reported"
-    OPEN = "open"
-    IN_PROGRESS = "in_progress"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
-
-
-class IncidentCategory(BaseEnum):
-    HARDWARE = "hardware"
-    SOFTWARE = "software"
-    PHYSICAL_DAMAGE = "physical_damage"
-    PERFORMANCE = "performance"
-    OTHER = "other"
-
-
-# ==============================================================================
-# License Types
-# ==============================================================================
-class LicenseType(BaseEnum):
-    PER_USER = "per_user"
-    PER_DEVICE = "per_device"
-    SITE = "site"
-
-
-# ==============================================================================
-# Audit Actions
-# ==============================================================================
-class AuditAction(BaseEnum):
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
-    ALLOCATE = "allocate"
-    APPROVE = "approve"
-    REJECT = "reject"
-
-
-# ==============================================================================
-# Notification Types
-# ==============================================================================
-class NotificationType(BaseEnum):
-    ASSET_ALLOCATED = "asset_allocated"
-    REQUEST_APPROVED = "request_approved"
-    REQUEST_REJECTED = "request_rejected"
-    INCIDENT_UPDATE = "incident_update"
-    LICENSE_EXPIRY = "license_expiry"
-    WARRANTY_EXPIRY = "warranty_expiry"
-    INCIDENT_ASSIGNED = "incident_assigned"
-    APPROVAL_NEEDED = "approval_needed"
