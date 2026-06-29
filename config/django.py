@@ -27,6 +27,7 @@ LOCAL_APPS = [
     "apps.assets.allocations",
     "apps.assets.requests",
     "apps.operations.incidents",
+    "apps.operations.licenses",
 ]
 
 # ==============================================================================
