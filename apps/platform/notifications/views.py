@@ -1,5 +1,6 @@
 """apps/platform/notifications/views.py — ViewSets for Notification."""
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -75,7 +76,10 @@ class NotificationViewSet(BaseViewSet):
     @action(detail=False, methods=["post"], url_path="mark-all-read")
     def mark_all_read(self, request):
         """Mark all notifications as read for the current user."""
-        count = self.get_queryset().filter(is_read=False).update(is_read=True)
+        count = self.get_queryset().filter(is_read=False).update(
+            is_read=True,
+            updated_at=timezone.now(),
+        )
         return success_response(
             data={"count": count},
             message=f"{count} notification(s) marked as read.",

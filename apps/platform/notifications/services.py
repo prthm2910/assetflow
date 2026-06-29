@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
-from django.db import models
 
 from apps.platform.notifications.models import Notification
 
@@ -45,7 +44,8 @@ class InAppChannel(NotificationChannel):
         related_id = None
         if related_object is not None:
             content_type = ContentType.objects.get_for_model(related_object)
-            related_id = related_object.pk
+            hrid_field = getattr(related_object, "_display_id_field", None)
+            related_id = str(getattr(related_object, hrid_field)) if hrid_field else str(related_object.pk)
 
         Notification.objects.create(
             organization=organization or getattr(recipient, "organization", None),

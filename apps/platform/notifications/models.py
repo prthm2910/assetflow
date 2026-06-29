@@ -147,7 +147,7 @@ class NotificationAudit(BaseModel):
             models.Index(fields=["content_type", "object_id", "threshold_days"]),
             models.Index(fields=["organization", "notification_type"]),
         ]
-        unique_together = ["content_type", "object_id", "threshold_days", "sent_at"]
+        unique_together = ["content_type", "object_id", "threshold_days", "notification_type"]
 
     def __str__(self):
         return f"{self.notification_type} ({self.threshold_days}d) → {self.object_id} at {self.sent_at:%Y-%m-%d}"

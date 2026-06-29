@@ -13,19 +13,6 @@ from apps.platform.notifications.models import Notification, NotificationAudit
 from apps.platform.notifications.services import InAppChannel, NotificationService
 
 
-def _has_been_notified(content_object, threshold_days, notification_type):
-    """Check if this object already got a notification at this threshold today."""
-    today = timezone.now().date()
-    content_type = ContentType.objects.get_for_model(content_object)
-    return NotificationAudit.objects.filter(
-        content_type=content_type,
-        object_id=str(content_object.pk),
-        threshold_days=threshold_days,
-        notification_type=notification_type,
-        sent_at__date=today,
-    ).exists()
-
-
 def _record_notification(content_object, threshold_days, notification_type, organization):
     """Record that a notification was sent (prevents duplicates)."""
     content_type = ContentType.objects.get_for_model(content_object)
@@ -48,19 +35,29 @@ def check_license_expiry():
     """
     today = timezone.now().date()
     thresholds = [30, 14, 7, 1, 0]
+    content_type = ContentType.objects.get_for_model(SoftwareLicense)
 
     for days in thresholds:
         target = today + timedelta(days=days)
         expiring = SoftwareLicense.objects.filter(
             expiry_date=target,
             is_deleted=False,
-        ).select_related("organization")
+        ).select_related("organization__config__admin_user")
+
+        # Bulk fetch already notified license IDs for this threshold today
+        notified_ids = set(
+            NotificationAudit.objects.filter(
+                content_type=content_type,
+                threshold_days=days,
+                notification_type=NotificationType.LICENSE_EXPIRY.value,
+                sent_at__date=today,
+            ).values_list("object_id", flat=True)
+        )
 
         # Group by organization
         by_org = {}
         for lic in expiring:
-            # Skip if already notified today at this threshold
-            if _has_been_notified(lic, days, NotificationType.LICENSE_EXPIRY.value):
+            if str(lic.pk) in notified_ids:
                 continue
 
             org = lic.organization
@@ -94,7 +91,6 @@ def check_license_expiry():
                 organization=org,
             )
 
-            # Record each license to prevent duplicates
             for lic in licenses:
                 _record_notification(lic, days, NotificationType.LICENSE_EXPIRY.value, org)
 
@@ -108,20 +104,32 @@ def check_warranty_expiry():
     """
     today = timezone.now().date()
     thresholds = [30, 14, 7, 1, 0]
+    from apps.assets.inventory.models import Asset
+
+    content_type = ContentType.objects.get_for_model(Asset)
 
     for days in thresholds:
         target = today + timedelta(days=days)
-        from apps.assets.inventory.models import Asset
 
         expiring = Asset.objects.filter(
             warranty_expiry=target,
             is_deleted=False,
-        ).select_related("organization")
+        ).select_related("organization__config__admin_user")
+
+        # Bulk fetch already notified asset IDs for this threshold today
+        notified_ids = set(
+            NotificationAudit.objects.filter(
+                content_type=content_type,
+                threshold_days=days,
+                notification_type=NotificationType.WARRANTY_EXPIRY.value,
+                sent_at__date=today,
+            ).values_list("object_id", flat=True)
+        )
 
         # Group by organization
         by_org = {}
         for asset in expiring:
-            if _has_been_notified(asset, days, NotificationType.WARRANTY_EXPIRY.value):
+            if str(asset.pk) in notified_ids:
                 continue
 
             org = asset.organization
