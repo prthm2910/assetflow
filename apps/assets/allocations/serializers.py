@@ -6,8 +6,6 @@ from rest_framework import serializers
 
 from apps.base.serializers import BaseSerializer
 from apps.base.constants import UserRole
-from apps.assets.inventory.models import Asset
-from apps.assets.inventory.serializers import AssetListSerializer
 from apps.assets.allocations.models import Allocation
 from apps.core.employees.models import Employee
 
