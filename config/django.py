@@ -28,6 +28,7 @@ LOCAL_APPS = [
     "apps.assets.requests",
     "apps.operations.incidents",
     "apps.operations.licenses",
+    "apps.platform.notifications",
 ]
 
 # ==============================================================================
