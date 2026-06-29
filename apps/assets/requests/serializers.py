@@ -6,7 +6,6 @@ from rest_framework import serializers
 
 from apps.base.serializers import BaseSerializer
 from apps.base.constants import UserRole
-from apps.assets.requests.constants import RequestStatus
 from apps.assets.requests.models import AssetRequest
 
 

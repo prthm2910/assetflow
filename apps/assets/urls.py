@@ -6,8 +6,6 @@ apps/assets/urls.py — Parent URL router for all Asset sub-apps.
     /api/v1/assets/allocations/  → Allocation CRUD + transfer / return
 """
 
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
 
 
 # Child app routers — each registered with its own prefix

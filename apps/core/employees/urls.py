@@ -23,7 +23,6 @@ Endpoints:
         GET        /search/?q=<query>
 """
 
-from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from apps.core.employees.views import DepartmentViewSet, EmployeeViewSet
