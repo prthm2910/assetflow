@@ -50,13 +50,28 @@ class SoftwareLicenseSerializer(BaseSerializer):
         ]
 
     def validate(self, attrs):
-        """Employees cannot modify licenses."""
+        """Employees cannot modify licenses. Enforce tenant isolation and seat limits."""
         request = self.context.get("request")
         user = request.user if request else None
-        if user and getattr(user, "role", None) == UserRole.EMPLOYEE.value:
-            raise serializers.ValidationError(
-                "Employees cannot create or modify licenses."
-            )
+        if user:
+            if getattr(user, "role", None) == UserRole.EMPLOYEE.value:
+                raise serializers.ValidationError(
+                    "Employees cannot create or modify licenses."
+                )
+            if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
+                user_org = getattr(user, "organization", None)
+                org = attrs.get("organization")
+                if user_org and org and org.id != user_org.id:
+                    raise serializers.ValidationError(
+                        {"organization": "Cannot modify a license for another organization."}
+                    )
+
+        # Prevent reducing total_seats below used_seats
+        if self.instance and "total_seats" in attrs:
+            if attrs["total_seats"] < self.instance.used_seats:
+                raise serializers.ValidationError(
+                    {"total_seats": f"Cannot reduce total seats below {self.instance.used_seats} (currently assigned)."}
+                )
         return attrs
 
 
