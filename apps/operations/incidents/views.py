@@ -211,6 +211,7 @@ class IncidentViewSet(BaseViewSet):
 
         employee_qs = Employee.objects.filter(
             organization=instance.organization,
+            is_active=True,
             is_deleted=False,
         )
         serializer = AssignSerializer(
