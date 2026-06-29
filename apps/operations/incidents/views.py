@@ -78,7 +78,7 @@ class IncidentViewSet(BaseViewSet):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [RoleBasedPermission(write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN])]
         # assign/resolve/close/add_attachment: org admin or super admin
-        if self.action in ("assign", "resolve", "close", "add_attachment"):
+        if self.action in ("assign", "resolve", "close", "add_attachment", "start_work"):
             return [RoleBasedPermission(write_roles=[UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN])]
         # Default: same as super() — write_roles enforced
         return super().get_permissions()
@@ -239,6 +239,28 @@ class IncidentViewSet(BaseViewSet):
         return success_response(
             data=IncidentSerializer(instance).data,
             message="Incident assigned successfully.",
+        )
+
+    @action(detail=True, methods=["post"], url_path="start")
+    def start_work(self, request, inc_id=None):
+        """
+        Transition incident from open to in_progress.
+        """
+        instance = self.get_object()
+
+        if instance.status != IncidentStatus.OPEN.value:
+            return Response(
+                {"error": f"Only open incidents can be started. Current status: {instance.status}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        instance.status = IncidentStatus.IN_PROGRESS.value
+        instance.updated_by = request.user
+        instance.save(update_fields=["status", "updated_at", "updated_by"])
+
+        return success_response(
+            data=IncidentSerializer(instance).data,
+            message="Incident work started.",
         )
 
     @action(detail=True, methods=["post"], url_path="resolve")
