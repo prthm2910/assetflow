@@ -4,7 +4,7 @@ apps/assets/inventory/serializers.py — Serializers for Asset.
 
 from rest_framework import serializers
 
-from apps.base.constants import AssetStatus
+from apps.assets.inventory.constants import AssetStatus
 from apps.base.serializers import BaseSerializer
 from apps.assets.inventory.models import Asset
 

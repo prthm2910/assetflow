@@ -82,6 +82,6 @@ class TestAssetModel:
 
     def test_asset_default_status(self, organization):
         """New assets default to 'available' status."""
-        from apps.base.constants import AssetStatus
+        from apps.assets.inventory.constants import AssetStatus
         asset = Asset.objects.create(organization=organization, name="Webcam")
         assert asset.status == AssetStatus.AVAILABLE.value
