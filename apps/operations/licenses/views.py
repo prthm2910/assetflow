@@ -1,6 +1,7 @@
 """apps/operations/licenses/views.py — ViewSets for licenses."""
 
 from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -13,7 +14,7 @@ from apps.base.response import success_response, error_response
 from apps.base.viewsets import BaseViewSet
 from apps.assets.inventory.models import Asset
 from apps.core.employees.models import Employee
-from apps.operations.licenses.filters import SoftwareLicenseFilterSet
+from apps.operations.licenses.filters import SoftwareLicenseFilterSet, LicenseAssignmentFilterSet
 from apps.operations.licenses.models import SoftwareLicense, LicenseAssignment
 from apps.operations.licenses.serializers import (
     SoftwareLicenseSerializer,
@@ -57,7 +58,12 @@ class SoftwareLicenseViewSet(BaseViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        queryset = SoftwareLicense.objects.select_related("organization")
+        queryset = SoftwareLicense.objects.select_related("organization").annotate(
+            annotated_used_seats=Count(
+                "assignments",
+                filter=Q(assignments__revoked_at__isnull=True),
+            ),
+        )
         return self.scope_queryset(queryset)
 
     def get_serializer_class(self):
@@ -115,16 +121,9 @@ class SoftwareLicenseViewSet(BaseViewSet):
         """
         Assign a license seat to an employee and/or asset.
 
-        Requires available seats.
+        Uses select_for_update to prevent race conditions on concurrent assignments.
         """
         instance = self.get_object()
-
-        if instance.available_seats <= 0:
-            return error_response(
-                message="No available seats for this license.",
-                code="NO_SEATS_AVAILABLE",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
 
         employee_qs = Employee.objects.filter(
             organization=instance.organization,
@@ -143,12 +142,42 @@ class SoftwareLicenseViewSet(BaseViewSet):
         )
         serializer.is_valid(raise_exception=True)
 
+        employee = serializer.validated_data.get("employee")
+        asset = serializer.validated_data.get("asset")
+
         with transaction.atomic():
+            # Lock the license record to prevent concurrent over-allocation
+            locked_license = SoftwareLicense.objects.select_for_update().get(pk=instance.pk)
+            if locked_license.available_seats <= 0:
+                return error_response(
+                    message="No available seats for this license.",
+                    code="NO_SEATS_AVAILABLE",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Prevent duplicate active assignments
+            if employee and locked_license.assignments.filter(
+                employee=employee, revoked_at__isnull=True
+            ).exists():
+                return error_response(
+                    message="This employee already has an active assignment for this license.",
+                    code="DUPLICATE_ASSIGNMENT",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+            if asset and locked_license.assignments.filter(
+                asset=asset, revoked_at__isnull=True
+            ).exists():
+                return error_response(
+                    message="This asset already has an active assignment for this license.",
+                    code="DUPLICATE_ASSIGNMENT",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
             assignment = LicenseAssignment.objects.create(
-                organization=instance.organization,
-                license=instance,
-                employee=serializer.validated_data.get("employee"),
-                asset=serializer.validated_data.get("asset"),
+                organization=locked_license.organization,
+                license=locked_license,
+                employee=employee,
+                asset=asset,
             )
 
         return success_response(
@@ -228,13 +257,19 @@ class SoftwareLicenseViewSet(BaseViewSet):
 
     @action(detail=True, methods=["get"], url_path="assignments")
     def assignments(self, request, lic_id=None):
-        """List all assignments for a license."""
+        """List all assignments for a license. Supports filtering."""
+        
+
         instance = self.get_object()
         queryset = instance.assignments.select_related(
             "employee", "employee__user", "asset"
         )
-        # Don't use self.filter_queryset — it uses SoftwareLicense filterset
-        # which doesn't match LicenseAssignment model
+
+        # Apply LicenseAssignmentFilterSet since viewset uses SoftwareLicenseFilterSet
+        filterset = LicenseAssignmentFilterSet(request.GET, queryset=queryset)
+        if filterset.is_valid():
+            queryset = filterset.qs
+
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = LicenseAssignmentSerializer(page, many=True)

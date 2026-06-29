@@ -99,6 +99,8 @@ class SoftwareLicense(BaseModel):
     @property
     def used_seats(self):
         """Count of active (non-revoked) assignments."""
+        if hasattr(self, "annotated_used_seats"):
+            return self.annotated_used_seats
         return self.assignments.filter(revoked_at__isnull=True).count()
 
     @property
@@ -162,6 +164,12 @@ class LicenseAssignment(BaseModel):
             models.Index(fields=["license", "revoked_at"]),
             models.Index(fields=["employee"]),
             models.Index(fields=["asset"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(employee__isnull=False) | models.Q(asset__isnull=False),
+                name="employee_or_asset_required",
+            ),
         ]
 
     def __str__(self):
