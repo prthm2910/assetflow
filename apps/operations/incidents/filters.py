@@ -18,7 +18,7 @@ class IncidentFilterSet(BaseFilterSet):
         label="Asset HRID (e.g. AST7K3M9)",
     )
     reported_by_id = django_filters.CharFilter(
-        field_name="reported_by__emp_id",
+        field_name="reported_by__employee_id",
         label="Reporter Employee HRID (e.g. EMP4X9P2)",
     )
     status = django_filters.CharFilter(

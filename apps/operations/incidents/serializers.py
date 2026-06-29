@@ -12,12 +12,12 @@ class IncidentSerializer(BaseSerializer):
     """Full serializer for Incident — all fields."""
 
     reported_by_name = serializers.SerializerMethodField()
-    reported_by_emp_id = serializers.CharField(
-        source="reported_by.emp_id", read_only=True,
+    reported_by_employee_id = serializers.CharField(
+        source="reported_by.employee_id", read_only=True,
     )
     assigned_to_name = serializers.SerializerMethodField()
-    assigned_to_emp_id = serializers.CharField(
-        source="assigned_to.emp_id", read_only=True,
+    assigned_to_employee_id = serializers.CharField(
+        source="assigned_to.employee_id", read_only=True,
     )
     asset_name = serializers.CharField(source="asset.name", read_only=True)
     asset_id_hrid = serializers.CharField(source="asset.asset_id", read_only=True)
@@ -41,14 +41,14 @@ class IncidentSerializer(BaseSerializer):
             "asset_id_hrid",
             "reported_by",
             "reported_by_name",
-            "reported_by_emp_id",
+            "reported_by_employee_id",
             "title",
             "description",
             "category",
             "status",
             "assigned_to",
             "assigned_to_name",
-            "assigned_to_emp_id",
+            "assigned_to_employee_id",
             "resolution_notes",
             "attachments",
             "resolved_at",
@@ -64,6 +64,7 @@ class IncidentSerializer(BaseSerializer):
             "updated_by",
             "resolved_at",
             "closed_at",
+            "status",
             # Core immutable fields
             "organization",
             "reported_by",
@@ -77,7 +78,7 @@ class IncidentSerializer(BaseSerializer):
         if user and getattr(user, "role", None) == UserRole.EMPLOYEE.value:
             restricted = {"assigned_to", "resolution_notes", "status"}
             for field in restricted:
-                if field in attrs and attrs[field]:
+                if field in attrs:
                     raise serializers.ValidationError(
                         {field: f"Employees cannot modify {field}."}
                     )
@@ -98,8 +99,8 @@ class IncidentListSerializer(BaseSerializer):
     """Lightweight serializer for list views."""
 
     reported_by_name = serializers.SerializerMethodField()
-    reported_by_emp_id = serializers.CharField(
-        source="reported_by.emp_id", read_only=True,
+    reported_by_employee_id = serializers.CharField(
+        source="reported_by.employee_id", read_only=True,
     )
     asset_name = serializers.CharField(source="asset.name", read_only=True)
     asset_id = serializers.CharField(source="asset.asset_id", read_only=True)
@@ -114,7 +115,7 @@ class IncidentListSerializer(BaseSerializer):
             "asset_id",
             "reported_by",
             "reported_by_name",
-            "reported_by_emp_id",
+            "reported_by_employee_id",
             "title",
             "category",
             "status",
