@@ -249,9 +249,10 @@ class IncidentViewSet(BaseViewSet):
         instance = self.get_object()
 
         if instance.status != IncidentStatus.OPEN.value:
-            return Response(
-                {"error": f"Only open incidents can be started. Current status: {instance.status}"},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message=f"Only open incidents can be started. Current status: {instance.status}",
+                code="INVALID_STATUS",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         instance.status = IncidentStatus.IN_PROGRESS.value
