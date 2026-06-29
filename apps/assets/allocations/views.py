@@ -8,7 +8,8 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.base.constants import UserRole, AssetStatus
+from apps.base.constants import UserRole
+from apps.assets.inventory.constants import AssetStatus
 from apps.base.response import success_response
 from apps.base.viewsets import BaseViewSet
 from apps.assets.allocations.filters import AllocationFilterSet

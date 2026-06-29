@@ -5,7 +5,7 @@ apps/assets/requests/models.py — AssetRequest model for employee asset request
 from django.db import models
 
 from apps.base.models import BaseModel
-from apps.base.constants import RequestPriority, RequestStatus
+from apps.assets.requests.constants import RequestPriority, RequestStatus
 
 
 class AssetRequest(BaseModel):

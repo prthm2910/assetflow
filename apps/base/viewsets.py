@@ -105,6 +105,27 @@ class BaseViewSet(viewsets.ModelViewSet):
         """
         return queryset
 
+    def validate_same_org(self, instance, related_obj, field_name="related object"):
+        """
+        Validate that a related object belongs to the same organization as the instance.
+
+        Returns an error Response if orgs don't match, or None if valid.
+        Use in custom actions that accept foreign objects (e.g., assign, transfer).
+
+        Example:
+            err = self.validate_same_org(incident, employee, "employee")
+            if err:
+                return err
+        """
+        instance_org = getattr(instance, "organization", None)
+        related_org = getattr(related_obj, "organization", None)
+        if instance_org and related_org and instance_org.id != related_org.id:
+            return Response(
+                {"error": f"This {field_name} does not belong to your organization."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return None
+
     def perform_create(self, serializer):
         """Set created_by on create if the model supports it."""
         kwargs = {}

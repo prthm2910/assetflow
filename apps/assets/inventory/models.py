@@ -4,7 +4,7 @@ apps/assets/inventory/models.py — Asset model for inventory management.
 
 from django.db import models
 
-from apps.base.constants import AssetStatus
+from apps.assets.inventory.constants import AssetStatus
 from apps.base.models import BaseModel
 
 
