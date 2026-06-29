@@ -129,10 +129,14 @@ class Incident(BaseModel):
         ]
 
     def __str__(self):
-        asset_name = self.asset.name if self.asset else "Unknown Asset"
-        reporter_name = (
-            self.reported_by.user.get_full_name()
-            if self.reported_by and getattr(self.reported_by, "user", None)
-            else "Unknown Employee"
+        asset_name = (
+            self.asset.name
+            if getattr(self, "asset_id", None)
+            else "Unknown Asset"
         )
-        return f"{reporter_name} reported {asset_name}: {self.title} ({self.inc_id})"
+        reporter_name = "Unknown Employee"
+        if getattr(self, "reported_by_id", None):
+            employee = self.reported_by
+            if employee and getattr(employee, "user_id", None):
+                reporter_name = employee.user.get_full_name()
+        return f"{reporter_name} reported {asset_name}: {self.title} ({self.inc_id or 'New'})"

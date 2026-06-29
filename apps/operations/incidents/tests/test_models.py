@@ -100,17 +100,13 @@ class TestIncidentModel:
         assert incident.inc_id in s
 
     def test_str_with_null_relations(self):
-        """__str__ guards against null FKs."""
-        from django.core.exceptions import ObjectDoesNotExist
-
+        """__str__ guards against null FKs and returns fallback values."""
         incident = Incident(
             title="Orphan incident",
             description="No relations.",
         )
-        # Accessing unfilled non-nullable FKs raises RelatedObjectDoesNotExist
-        # before any __str__ guard can evaluate. The __str__ is safe on saved instances.
-        with pytest.raises(ObjectDoesNotExist):
-            str(incident)
+        s = str(incident)
+        assert "Unknown Employee reported Unknown Asset: Orphan incident" in s
 
     def test_resolved_at_null_by_default(self, organization, employee, asset):
         """resolved_at is null when incident is created."""
