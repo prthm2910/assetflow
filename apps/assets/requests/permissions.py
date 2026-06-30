@@ -30,7 +30,7 @@ class IsRequesterOrManagerOrAdmin(RoleBasedPermission):
         if role == UserRole.ORG_ADMIN.value:
             return True
 
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
 
         # Requester themselves
         requested_by_id = getattr(obj, "requested_by_id", None)
@@ -73,7 +73,7 @@ class IsManagerOrAdmin(RoleBasedPermission):
             return True
 
         # Employee: must be the requester's direct manager
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if employee:
             try:
                 requested_by = getattr(obj, "requested_by", None)
