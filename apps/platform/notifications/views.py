@@ -46,22 +46,6 @@ class NotificationViewSet(BaseViewSet):
             return NotificationListSerializer
         return NotificationSerializer
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
     @action(detail=True, methods=["patch"], url_path="read")
     def mark_read(self, request, notif_id=None):
         """Mark a single notification as read."""
