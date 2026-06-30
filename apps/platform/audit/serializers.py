@@ -1,7 +1,7 @@
 """
 apps/platform/audit/serializers.py — Serializers for AuditLog.
 
-AuditLogSerializer: full detail with old_data/new_data diffs.
+AuditLogSerializer: full detail with changes snapshot (old/new).
 AuditLogListSerializer: lightweight for list views (excludes data blobs).
 """
 
@@ -32,6 +32,7 @@ class AuditLogListSerializer(BaseSerializer):
             "object_id",
             "ip_address",
             "request_id",
+            "path",
             "created_at",
             "updated_at",
         ]
@@ -43,7 +44,7 @@ class AuditLogListSerializer(BaseSerializer):
 
 
 class AuditLogSerializer(BaseSerializer):
-    """Full detail serializer — includes old_data and new_data diffs."""
+    """Full detail serializer — includes changes snapshot."""
 
     user_email = serializers.CharField(
         source="user.email", read_only=True, default=None
@@ -61,10 +62,10 @@ class AuditLogSerializer(BaseSerializer):
             "action",
             "model_name",
             "object_id",
-            "old_data",
-            "new_data",
+            "changes",
             "ip_address",
             "request_id",
+            "path",
             "created_at",
             "updated_at",
         ]

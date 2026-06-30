@@ -13,7 +13,12 @@ import logging
 
 from apps.platform.audit.models import AuditLog
 from apps.platform.audit.constants import AuditAction
-from apps.base.middleware import get_current_user, get_current_ip, get_current_request_id
+from apps.base.middleware import (
+    get_current_user,
+    get_current_ip,
+    get_current_request_id,
+    get_current_request,
+)
 
 audit_logger = logging.getLogger(__name__)
 
@@ -77,10 +82,19 @@ def _build_audit_kwargs(instance, action, old_data=None, new_data=None):
     if request_id:
         kwargs["request_id"] = request_id
 
+    request = get_current_request()
+    if request:
+        kwargs["path"] = request.path
+
+    # Build changes dict: {"old": {...}, "new": {...}}
+    changes = {}
     if old_data is not None:
-        kwargs["old_data"] = old_data
+        changes["old"] = old_data
     if new_data is not None:
-        kwargs["new_data"] = new_data
+        changes["new"] = new_data
+    if changes:
+        kwargs["changes"] = changes
+
     return kwargs
 
 

@@ -21,8 +21,8 @@ class TestAuditLogModel:
         assert log.action == "create"
         assert log.model_name == "Asset"
 
-    def test_audit_log_stores_old_and_new_data(self, organization, user):
-        """AuditLog captures old_data and new_data."""
+    def test_audit_log_stores_changes(self, organization, user):
+        """AuditLog captures changes snapshot."""
         obj_id = uuid.uuid4()
         log = AuditLog.objects.create(
             organization=organization,
@@ -30,11 +30,10 @@ class TestAuditLogModel:
             action="update",
             model_name="Asset",
             object_id=obj_id,
-            old_data={"name": "Old Laptop"},
-            new_data={"name": "New Laptop"},
+            changes={"old": {"name": "Old Laptop"}, "new": {"name": "New Laptop"}},
         )
-        assert log.old_data["name"] == "Old Laptop"
-        assert log.new_data["name"] == "New Laptop"
+        assert log.changes["old"]["name"] == "Old Laptop"
+        assert log.changes["new"]["name"] == "New Laptop"
 
     def test_audit_log_str_representation(self, organization, user):
         """__str__ shows action, model, object_id, and org name."""

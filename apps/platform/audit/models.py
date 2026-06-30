@@ -54,15 +54,10 @@ class AuditLog(BaseModel):
     object_id = models.UUIDField(
         help_text="UUID primary key of the affected object.",
     )
-    old_data = models.JSONField(
+    changes = models.JSONField(
         null=True,
         blank=True,
-        help_text="Serialized state before the change.",
-    )
-    new_data = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Serialized state after the change.",
+        help_text="Change snapshot: {'old': {...}, 'new': {...}}.",
     )
     ip_address = models.GenericIPAddressField(
         null=True,
@@ -73,6 +68,12 @@ class AuditLog(BaseModel):
         null=True,
         blank=True,
         help_text="Correlation ID (X-Request-ID) for request tracing.",
+    )
+    path = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="URL path of the request (e.g., /api/v1/assets/AST7K3M9/).",
     )
 
     class Meta:
