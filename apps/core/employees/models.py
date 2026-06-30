@@ -187,7 +187,7 @@ class Employee(BaseModel):
     def get_direct_reports_tree(self):
         """Return nested tree of all reports under this employee."""
         children = []
-        for report in self.direct_reports.filter(is_deleted=False, is_active=True):
+        for report in self.direct_reports.active():
             children.append(
                 {
                     "employee": report,

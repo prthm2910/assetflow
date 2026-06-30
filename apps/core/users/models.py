@@ -107,6 +107,11 @@ class User(AbstractUser):
         """Check if user is an employee."""
         return self.role == UserRole.EMPLOYEE.value
 
+    @property
+    def employee(self):
+        """Return the Employee profile linked to this user, or None."""
+        return getattr(self, "employee_profile", None)
+
 
 class PasswordResetToken(models.Model):
     """
