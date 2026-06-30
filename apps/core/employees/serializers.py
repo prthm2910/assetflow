@@ -35,7 +35,6 @@ class DepartmentSerializer(BaseSerializer):
     class Meta:
         model = Department
         fields = [
-            "id",
             "dept_id",
             "name",
             "code",
@@ -44,12 +43,6 @@ class DepartmentSerializer(BaseSerializer):
             "parent",
             "head",
             "employee_count",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
         read_only_fields = [
             "id",
@@ -73,12 +66,10 @@ class DepartmentListSerializer(BaseSerializer):
     class Meta:
         model = Department
         fields = [
-            "id",
             "dept_id",
             "name",
             "code",
             "organization",
-            "is_active",
             "employee_count",
         ]
 
@@ -97,7 +88,6 @@ class EmployeeSerializer(BaseSerializer):
     class Meta:
         model = Employee
         fields = [
-            "id",
             "employee_id",
             "user",
             "user_details",
@@ -111,12 +101,6 @@ class EmployeeSerializer(BaseSerializer):
             "join_date",
             "termination_date",
             "direct_report_count",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
         read_only_fields = [
             "id",
@@ -158,7 +142,6 @@ class EmployeeCreateSerializer(BaseSerializer):
     class Meta:
         model = Employee
         fields = [
-            "id",
             "employee_id",
             "user",
             "organization",
@@ -168,11 +151,6 @@ class EmployeeCreateSerializer(BaseSerializer):
             "employee_number",
             "join_date",
             "termination_date",
-            "is_active",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
         read_only_fields = [
             "id",

@@ -25,14 +25,6 @@ class AssetRequestSerializer(BaseSerializer):
     class Meta:
         model = AssetRequest
         fields = [
-            # BaseModel fields
-            "id",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             # AssetRequest fields
             "req_id",
             "organization",
@@ -124,19 +116,12 @@ class AssetRequestCreateSerializer(BaseSerializer):
     class Meta:
         model = AssetRequest
         fields = [
-            "id",
             "req_id",
             "requested_by",
             "asset_category",
             "reason",
             "priority",
             "status",
-            "created_by",
-            "updated_by",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = [
             "id",

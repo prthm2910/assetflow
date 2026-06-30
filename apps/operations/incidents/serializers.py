@@ -26,13 +26,6 @@ class IncidentSerializer(BaseSerializer):
     class Meta:
         model = Incident
         fields = [
-            # BaseModel fields
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             # Incident fields
             "inc_id",
             "organization",
@@ -125,7 +118,6 @@ class IncidentCreateSerializer(BaseSerializer):
     class Meta:
         model = Incident
         fields = [
-            "id",
             "inc_id",
             "asset",
             "reported_by",
@@ -138,12 +130,6 @@ class IncidentCreateSerializer(BaseSerializer):
             "attachments",
             "resolved_at",
             "closed_at",
-            "created_by",
-            "updated_by",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = [
             "id",
