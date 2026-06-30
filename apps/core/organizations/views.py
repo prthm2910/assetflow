@@ -3,12 +3,11 @@ apps/core/organizations/views.py — ViewSets for Organization and OrganizationP
 """
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import status
 from rest_framework.decorators import action
 from apps.base.constants import UserRole
-from apps.base.response import error_response, success_response
-from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
-from apps.core.organizations.models import Organization, OrganizationConfig
+from apps.base.response import success_response
+from apps.base.viewsets import BaseViewSet
+from apps.core.organizations.models import Organization
 from apps.core.organizations.serializers import (
     OrganizationConfigSerializer,
     OrganizationListSerializer,
@@ -49,7 +48,7 @@ from apps.core.organizations.serializers import (
         description="Soft-delete an organization. Super admin only.",
     ),
 )
-class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
+class OrganizationViewSet(BaseViewSet):
     """
     Organization management: CRUD for super admin, read-only for others.
 
@@ -90,58 +89,17 @@ class OrganizationViewSet(BaseViewSet, BulkOperationsMixin):
 
     @extend_schema(
         tags=["Organizations"],
-        summary="Toggle organization active status",
-        description="Activate or deactivate an organization. Super admin only.",
-    )
-    @action(detail=True, methods=["post"], url_path="toggle-active")
-    def toggle_active(self, request, org_id=None):
-        """Toggle is_active on an organization."""
-        # Check write permission for this action
-        if getattr(request.user, "role", None) != UserRole.SUPER_ADMIN.value:
-            return error_response(
-                message="Only super admins can toggle organization status.",
-                code="FORBIDDEN",
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
-
-        instance = self.get_object()
-        instance.is_active = not instance.is_active
-        instance.save(update_fields=["is_active", "updated_at"])
-        serializer = OrganizationSerializer(instance)
-        return success_response(
-            data=serializer.data,
-            message=f"Organization {'activated' if instance.is_active else 'deactivated'}.",
-        )
-
-    @extend_schema(
-        tags=["Organizations"],
         summary="Get organization config",
         description="Retrieve organization config. Org admin/employee see own org config.",
     )
     @action(detail=True, methods=["get", "patch"], url_path="config")
-    def config(self, request, org_id=None):  # noqa: ARG001 (org_id from URL pattern)
+    def config(self, request, org_id=None):
         """GET or PATCH the config for an organization."""
         instance = self.get_object()
-        try:
-            config = instance.config
-        except OrganizationConfig.DoesNotExist:
-            return error_response(
-                message="Organization config not found.",
-                code="CONFIG_NOT_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-
+        config = instance.config
         if request.method == "GET":
             serializer = OrganizationConfigSerializer(config)
             return success_response(data=serializer.data)
-
-        # PATCH — super admin only
-        if getattr(request.user, "role", None) != UserRole.SUPER_ADMIN.value:
-            return error_response(
-                message="Only super admins can update organization config.",
-                code="FORBIDDEN",
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
 
         serializer = OrganizationConfigSerializer(
             config,
@@ -190,27 +148,3 @@ class OrganizationProfileViewSet(BaseViewSet):
             return Organization.objects.get(id=org.id)
         except Organization.DoesNotExist:
             return None
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if not instance:
-            return error_response(
-                message="No organization assigned to your account.",
-                code="ORG_NOT_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if not instance:
-            return error_response(
-                message="No organization assigned to your account.",
-                code="ORG_NOT_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)

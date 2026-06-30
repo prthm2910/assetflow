@@ -5,11 +5,10 @@ apps/core/employees/views.py — ViewSets for Department and Employee.
 from django.db import models
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 
 from apps.base.constants import UserRole
 from apps.base.response import error_response, success_response
-from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
+from apps.base.viewsets import BaseViewSet
 from apps.core.employees.models import Department, Employee
 from apps.core.employees.serializers import (
     DepartmentListSerializer,
@@ -21,7 +20,7 @@ from apps.core.employees.serializers import (
 )
 
 
-class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
+class DepartmentViewSet(BaseViewSet):
     """
     Department management within an organization.
 
@@ -39,6 +38,8 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
 
+    queryset = Department.objects.all()
+
     write_roles = [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN]
 
     def scope_for_employee(self, queryset):
@@ -48,10 +49,6 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
         if employee and employee.department:
             return queryset.filter(id=employee.department.id)
         return queryset.none()
-
-    def get_queryset(self):
-        queryset = Department.objects.all()
-        return self.scope_queryset(queryset)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -71,7 +68,7 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
         return self.paginated_response(queryset, EmployeeListSerializer)
 
 
-class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
+class EmployeeViewSet(BaseViewSet):
     """
     Employee management within an organization.
 

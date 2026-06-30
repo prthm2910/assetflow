@@ -6,13 +6,11 @@ from collections import defaultdict
 
 from django.db.models import Count, Q
 
-from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 
 from apps.base.constants import UserRole
 from apps.base.response import success_response
-from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
+from apps.base.viewsets import BaseViewSet
 from apps.assets.categories.models import AssetCategory
 from apps.assets.categories.serializers import (
     AssetCategoryListSerializer,
@@ -21,7 +19,7 @@ from apps.assets.categories.serializers import (
 )
 
 
-class AssetCategoryViewSet(BaseViewSet, BulkOperationsMixin):
+class AssetCategoryViewSet(BaseViewSet):
     """
     Asset Category management within an organization.
 
@@ -74,14 +72,8 @@ class AssetCategoryViewSet(BaseViewSet, BulkOperationsMixin):
         Returns the full category hierarchy as a nested tree.
         Uses a single query + parent_map for N+1-free rendering.
         """
-        # Build parent_map in one query — avoids N+1 on recursive serialization
-        filters = {"is_deleted": False, "is_active": True}
-        if getattr(request.user, "role", None) != UserRole.SUPER_ADMIN.value:
-            user_org = getattr(request.user, "organization", None)
-            if user_org:
-                filters["organization"] = user_org
-
-        all_categories = AssetCategory.objects.filter(**filters)
+        # Build parent_map from scope_queryset — org-filtered, active only
+        all_categories = self.get_queryset().filter(is_active=True)
         parent_map = defaultdict(list)
         for cat in all_categories:
             parent_pk = cat.parent.id if cat.parent else None
