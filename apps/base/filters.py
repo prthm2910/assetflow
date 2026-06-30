@@ -28,35 +28,3 @@ class BaseFilterSet(django_filters.FilterSet):
         field_name="is_deleted",
         label="Is deleted",
     )
-
-
-class NameFilter(django_filters.FilterSet):
-    """
-    FilterSet with name search (icontains).
-    """
-
-    name = django_filters.CharFilter(
-        field_name="name",
-        lookup_expr="icontains",
-        label="Name contains",
-    )
-
-
-class SoftDeleteFilterSet(BaseFilterSet):
-    """
-    FilterSet that excludes soft-deleted records by default.
-    Include ?include_deleted=true to show deleted records.
-    """
-
-    include_deleted = django_filters.BooleanFilter(
-        method="filter_include_deleted",
-        label="Include deleted records",
-    )
-
-    class Meta:
-        abstract = True
-
-    def filter_include_deleted(self, queryset, name, value):
-        if value:
-            return getattr(queryset.model, "all_objects", queryset).all()
-        return queryset

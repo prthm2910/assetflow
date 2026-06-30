@@ -6,7 +6,7 @@ domain logic lives here (testable without HTTP clients).
 """
 
 from apps.assets.categories.models import AssetCategory
-from apps.assets.requests.constants import RequestStatus
+from apps.assets.requests.constants import RequestPriority, RequestStatus
 from apps.assets.requests.models import AssetRequest
 
 
@@ -64,7 +64,7 @@ class AssetRequestService:
             requested_by=employee,
             asset_category=validated_data["asset_category"],
             reason=validated_data["reason"],
-            priority=validated_data.get("priority", RequestStatus.PENDING.value),
+            priority=validated_data.get("priority", RequestPriority.MEDIUM.value),
             status=RequestStatus.PENDING.value,
             created_by=user,
         )

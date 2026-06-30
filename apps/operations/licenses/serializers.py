@@ -4,7 +4,6 @@ from rest_framework import serializers
 
 from apps.base.fields import EmployeeNameField
 from apps.base.serializers import BaseSerializer
-from apps.base.constants import UserRole
 from apps.assets.inventory.models import Asset
 from apps.core.employees.models import Employee
 from apps.operations.licenses.models import SoftwareLicense, LicenseAssignment

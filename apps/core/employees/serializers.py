@@ -9,6 +9,10 @@ from apps.base.serializers import BaseSerializer
 from apps.core.employees.models import Department, Employee
 
 
+def _get_active_employee_count(department):
+    return department.employees.active().count()
+
+
 User = get_user_model()
 
 
@@ -58,7 +62,7 @@ class DepartmentSerializer(BaseSerializer):
         ]
 
     def get_employee_count(self, obj):
-        return obj.employees.active().count()
+        return _get_active_employee_count(obj)
 
 
 class DepartmentListSerializer(BaseSerializer):
@@ -79,7 +83,7 @@ class DepartmentListSerializer(BaseSerializer):
         ]
 
     def get_employee_count(self, obj):
-        return obj.employees.active().count()
+        return _get_active_employee_count(obj)
 
 
 class EmployeeSerializer(BaseSerializer):

@@ -94,13 +94,6 @@ SIMPLE_JWT = get_simple_jwt_config(env)
 SPECTACULAR_SETTINGS = SPECTACULAR_SETTINGS
 
 # ==============================================================================
-# 11. CORS Configuration
-# ==============================================================================
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-if not DEBUG:
-    CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
-
-# ==============================================================================
 # 12. Default Auto Field
 # ==============================================================================
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
