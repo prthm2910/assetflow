@@ -12,6 +12,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+import logging
 
 from apps.base.constants import UserRole
 from apps.base.response import error_response, success_response
@@ -29,6 +30,8 @@ from apps.core.users.serializers import (
     UserSerializer,
     UserUpdateSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 User = get_user_model()
@@ -135,6 +138,7 @@ class AuthViewSet(viewsets.GenericViewSet):
 
         # Generate tokens for immediate login
         refresh = RefreshToken.for_user(user) # type: ignore
+        logger.info("User registered: %s", user.email)
 
         return success_response(
             data={
@@ -160,11 +164,13 @@ class AuthViewSet(viewsets.GenericViewSet):
         }
 
         if user.must_change_password:
+            logger.info("Login with password-change-required: %s", user.email)
             return success_response(
                 data=response_data,
                 message="Login successful. Please change your password.",
             )
 
+        logger.info("User logged in: %s", user.email)
         return success_response(data=response_data, message="Login successful.")
 
     @action(detail=False, methods=["post"], url_path="refresh", permission_classes=[AllowAny])
@@ -173,6 +179,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer = TokenRefreshSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         refresh: "RefreshToken" = serializer.validated_data["refresh"]  # type: ignore
+        logger.debug("Token refreshed for user via refresh token")
         return success_response(
             data={
                 "access": str(refresh.access_token),
@@ -192,8 +199,10 @@ class AuthViewSet(viewsets.GenericViewSet):
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
+            logger.info("User logged out: %s", request.user.email)
             return success_response(message="Logged out successfully.")
         except Exception:
+            logger.info("User logged out (token cleanup skipped): %s", request.user.email)
             return success_response(message="Logged out successfully.")
 
     @action(detail=False, methods=["get", "patch"], url_path="me", permission_classes=[IsAuthenticated])
@@ -229,6 +238,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        logger.info("Password changed for user: %s", request.user.email)
         return success_response(message="Password changed successfully.")
 
     @action(detail=False, methods=["post"], url_path="password-reset")
@@ -252,6 +262,7 @@ class AuthViewSet(viewsets.GenericViewSet):
                 token=token,
                 expires_at=expires_at,
             )
+            logger.info("Password reset token created for: %s", email)
 
             # TODO: Send email with reset link
             # send_mail(
@@ -262,6 +273,7 @@ class AuthViewSet(viewsets.GenericViewSet):
             # )
 
         except User.DoesNotExist:
+            logger.debug("Password reset requested for non-existent email: %s", email)
             pass  # Don't reveal if user exists
 
         # Always return success to prevent email enumeration
@@ -275,6 +287,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        logger.info("Password reset confirmed successfully")
         return success_response(message="Password has been reset successfully.")
 
 
@@ -367,11 +380,14 @@ class UserViewSet(BaseViewSet):
 
         # Prevent self-deactivation
         if user.id == request.user.id:
+            logger.warning("User %s attempted to deactivate own account", request.user.email)
             return error_response(message="Cannot deactivate your own account.")
 
         user.is_active = not user.is_active
         user.save(update_fields=["is_active"])
 
+        status_msg = "activated" if user.is_active else "deactivated"
+        logger.info("User %s %s by %s", user.email, status_msg, request.user.email)
         return success_response(
             data=UserSerializer(user).data,
             message=f"User {'activated' if user.is_active else 'deactivated'} successfully.",
@@ -392,6 +408,7 @@ class UserViewSet(BaseViewSet):
         user.must_change_password = True
         user.save(update_fields=["password", "must_change_password"])
 
+        logger.info("Password reset for user %s by %s", user.email, request.user.email)
         return success_response(
             data={
                 "id": str(user.id),

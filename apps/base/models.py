@@ -4,6 +4,7 @@ apps/base/models.py — Base model for all AssetFlow models.
 Provides UUID primary key, audit fields, soft delete, and auto-HRID generation.
 """
 
+import logging
 import uuid
 
 from django.conf import settings
@@ -11,6 +12,8 @@ from django.db import models
 from django.utils import timezone
 
 from apps.base.managers import SoftDeleteManager
+
+logger = logging.getLogger(__name__)
 
 
 class BaseModel(models.Model):
@@ -87,9 +90,11 @@ class BaseModel(models.Model):
         self.is_active = False
         self.deleted_at = timezone.now()
         self.save(update_fields=["is_deleted", "is_active", "deleted_at", "updated_at"])
+        logger.debug("Soft-deleted %s pk=%s", self.__class__.__name__, self.pk)
 
     def hard_delete(self, using=None, keep_parents=False):
         """Actual database delete (bypasses soft delete)."""
+        logger.warning("Hard-deleting %s pk=%s", self.__class__.__name__, self.pk)
         super().delete(using=using, keep_parents=keep_parents)
 
     def restore(self):
@@ -98,4 +103,5 @@ class BaseModel(models.Model):
         self.is_active = True
         self.deleted_at = None
         self.save(update_fields=["is_deleted", "is_active", "deleted_at", "updated_at"])
+        logger.info("Restored %s pk=%s", self.__class__.__name__, self.pk)
 

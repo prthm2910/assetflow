@@ -135,6 +135,11 @@ class BaseViewSet(StandardResponseMixin, viewsets.ModelViewSet):
         if hasattr(serializer.Meta.model, "created_by"):
             kwargs["created_by"] = self.request.user
         serializer.save(**kwargs)
+        logger.info(
+            "Created %s by %s",
+            serializer.Meta.model.__name__,
+            self.request.user.email if self.request.user.is_authenticated else "anonymous",
+        )
 
     def perform_update(self, serializer):
         """Set updated_by on update if the model supports it."""
@@ -142,10 +147,18 @@ class BaseViewSet(StandardResponseMixin, viewsets.ModelViewSet):
         if hasattr(serializer.Meta.model, "updated_by"):
             kwargs["updated_by"] = self.request.user
         serializer.save(**kwargs)
+        logger.info(
+            "Updated %s pk=%s by %s",
+            serializer.Meta.model.__name__,
+            serializer.instance.pk,
+            self.request.user.email if self.request.user.is_authenticated else "anonymous",
+        )
 
     def perform_destroy(self, instance):
         """Soft-delete via BaseModel.delete(). Returns 204 No Content."""
+        model_name = instance.__class__.__name__
         instance.delete()  # BaseModel.delete() → soft-delete
+        logger.info("Soft-deleted %s pk=%s by %s", model_name, instance.pk, self.request.user.email)
 
     def paginated_response(self, queryset, serializer_class):
         """
