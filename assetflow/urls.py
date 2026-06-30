@@ -8,9 +8,14 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.base.health import health_check, readiness_check
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Health & readiness probes — not under API versioning
+    path("health/", health_check, name="health"),
+    path("ready/", readiness_check, name="ready"),
     # API v1 — modules are included here as they are implemented
     path("api/v1/users/", include("apps.core.users.urls")),
     path("api/v1/organizations/", include("apps.core.organizations.urls")),
