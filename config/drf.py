@@ -26,4 +26,13 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
     ],
     "EXCEPTION_HANDLER": "apps.base.response.custom_exception_handler",
+    # Rate limiting — prevents API abuse and brute force
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "10/min",
+        "user": "200/min",
+    },
 }
