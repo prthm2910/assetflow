@@ -16,6 +16,7 @@ from apps.assets.inventory.serializers import (
     AssetSerializer,
     AssetStatusChangeSerializer,
 )
+from apps.assets.inventory.services import AssetService
 
 
 class AssetViewSet(BaseViewSet):
@@ -55,35 +56,10 @@ class AssetViewSet(BaseViewSet):
             return AssetListSerializer
         return AssetSerializer
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = AssetListSerializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
     def create(self, request, *args, **kwargs):
-        # Enforce tenant isolation: non-super-admins can only create assets
-        # for their own organization.
+        # Inject organization based on user role, then validate via serializer
         data = request.data.copy()
-        user = request.user
-        user_org = getattr(user, "organization", None)
-
-        if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
-            if user_org:
-                data["organization"] = str(user_org.id)
-        elif user_org and "organization" not in data:
-            data["organization"] = str(user_org.id)
-
+        AssetService.inject_organization(request.user, data)
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -92,25 +68,6 @@ class AssetViewSet(BaseViewSet):
             message="Asset created successfully.",
             status_code=status.HTTP_201_CREATED,
         )
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()  # soft-delete
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["patch"], url_path="change-status")
     def change_status(self, request, asset_id=None):
@@ -124,15 +81,10 @@ class AssetViewSet(BaseViewSet):
         instance = self.get_object()
         serializer = AssetStatusChangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        instance.status = serializer.validated_data["status"]
-
-        update_fields = ["status", "updated_at"]
-        if hasattr(instance, "updated_by"):
-            instance.updated_by = request.user
-            update_fields.append("updated_by")
-
-        instance.save(update_fields=update_fields)
+        asset = AssetService.change_status(
+            instance, serializer.validated_data["status"], request.user
+        )
         return success_response(
-            data=AssetSerializer(instance).data,
-            message=f"Asset status changed to {instance.status}.",
+            data=AssetSerializer(asset, context=self.get_serializer_context()).data,
+            message=f"Asset status changed to {asset.status}.",
         )
