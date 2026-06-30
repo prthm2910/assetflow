@@ -3,7 +3,6 @@
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from apps.base.constants import UserRole
@@ -11,7 +10,7 @@ from apps.assets.inventory.models import Asset
 from apps.assets.inventory.services import AssetService
 from apps.operations.incidents.constants import IncidentStatus
 from apps.base.permissions import RoleBasedPermission
-from apps.base.response import success_response
+from apps.base.response import success_response, error_response
 from apps.base.viewsets import BaseViewSet
 from apps.core.employees.models import Employee
 from apps.operations.incidents.filters import IncidentFilterSet
@@ -139,9 +138,10 @@ class IncidentViewSet(BaseViewSet):
         # Resolve reported_by from the current user's employee profile
         employee = user.employee
         if not employee:
-            return Response(
-                {"error": "No employee profile found for the current user."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="No employee profile found for the current user.",
+                code="NO_EMPLOYEE_PROFILE",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = self.get_serializer(data=data)
@@ -295,9 +295,10 @@ class IncidentViewSet(BaseViewSet):
 
         attachment_url = request.data.get("attachment_url")
         if not attachment_url:
-            return Response(
-                {"error": "attachment_url is required."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="attachment_url is required.",
+                code="MISSING_FIELD",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         attachments = instance.attachments or []

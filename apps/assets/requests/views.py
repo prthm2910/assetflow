@@ -217,9 +217,10 @@ class AssetRequestViewSet(BaseViewSet):
         # Managers use soft-delete (destroy) instead. Admins always pass via permission class.
         if not (user.is_super_admin or user.is_org_admin):
             if employee and instance.requested_by_id != employee.id:
-                return Response(
-                    {"error": "You can only cancel your own requests."},
-                    status=status.HTTP_403_FORBIDDEN,
+                return error_response(
+                    message="You can only cancel your own requests.",
+                    code="FORBIDDEN",
+                    status_code=status.HTTP_403_FORBIDDEN,
                 )
 
         err = self.require_status(instance, RequestStatus.PENDING.value, "cancelled")

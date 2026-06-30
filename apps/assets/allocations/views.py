@@ -12,7 +12,7 @@ from apps.base.constants import UserRole
 from apps.assets.inventory.constants import AssetStatus
 from apps.assets.inventory.models import Asset
 from apps.assets.inventory.services import AssetService
-from apps.base.response import success_response
+from apps.base.response import success_response, error_response
 from apps.base.viewsets import BaseViewSet
 from apps.assets.allocations.filters import AllocationFilterSet
 from apps.assets.allocations.models import Allocation
@@ -142,9 +142,10 @@ class AllocationViewSet(BaseViewSet):
         current_allocation = self.get_object()
 
         if not current_allocation.is_current:
-            return Response(
-                {"error": "This allocation is already returned."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="This allocation is already returned.",
+                code="ALREADY_RETURNED",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = TransferSerializer(data=request.data)
@@ -155,9 +156,10 @@ class AllocationViewSet(BaseViewSet):
 
         # Cross-org guard — target employee must be in the same org as the allocation
         if new_employee.organization != current_allocation.organization:
-            return Response(
-                {"error": "Cannot transfer to an employee of a different organization."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="Cannot transfer to an employee of a different organization.",
+                code="CROSS_ORG_TRANSFER",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         now = timezone.now()
@@ -203,9 +205,10 @@ class AllocationViewSet(BaseViewSet):
         instance = self.get_object()
 
         if not instance.is_current:
-            return Response(
-                {"error": "This asset has already been returned."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="This asset has already been returned.",
+                code="ALREADY_RETURNED",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         notes = request.data.get("notes", "")
