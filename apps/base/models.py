@@ -100,12 +100,6 @@ class BaseModel(models.Model):
         self.save(update_fields=["is_deleted", "is_active", "deleted_at", "updated_at"])
 
 
-class BaseUserManager(models.Manager):
-    """Manager for BaseUser that excludes inactive users from default queries."""
-
-    def get_queryset(self):
-        return super().get_queryset().filter(is_active=True)
-
 
 class BaseUser(models.Model):
     """
@@ -121,7 +115,7 @@ class BaseUser(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = BaseUserManager()
+    objects = models.Manager()
 
     class Meta:
         abstract = True
