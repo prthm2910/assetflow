@@ -8,6 +8,14 @@ from apps.base.serializers import BaseSerializer
 from apps.assets.categories.models import AssetCategory
 
 
+def _get_active_sub_category_count(obj):
+    """Return active sub-category count, using annotation if available."""
+    annotated = getattr(obj, "sub_category_count_annotated", None)
+    if annotated is not None:
+        return annotated
+    return obj.sub_categories.active().count()
+
+
 class AssetCategorySerializer(BaseSerializer):
     """Full serializer for AssetCategory — includes parent name for readability."""
 
@@ -47,11 +55,7 @@ class AssetCategorySerializer(BaseSerializer):
         ]
 
     def get_sub_category_count(self, obj):
-        """Use annotated count if available, fall back to query."""
-        annotated = getattr(obj, "sub_category_count_annotated", None)
-        if annotated is not None:
-            return annotated
-        return obj.sub_categories.filter(is_deleted=False, is_active=True).count()
+        return _get_active_sub_category_count(obj)
 
     def validate(self, attrs):
         """
@@ -120,11 +124,7 @@ class AssetCategoryListSerializer(BaseSerializer):
         ]
 
     def get_sub_category_count(self, obj):
-        """Use annotated count if available, fall back to query."""
-        annotated = getattr(obj, "sub_category_count_annotated", None)
-        if annotated is not None:
-            return annotated
-        return obj.sub_categories.filter(is_deleted=False, is_active=True).count()
+        return _get_active_sub_category_count(obj)
 
 
 class AssetCategoryTreeSerializer(BaseSerializer):
@@ -155,7 +155,7 @@ class AssetCategoryTreeSerializer(BaseSerializer):
         if parent_map is not None:
             children = parent_map.get(obj.id, [])
         else:
-            children = obj.sub_categories.filter(is_deleted=False, is_active=True)
+            children = obj.sub_categories.active()
         return AssetCategoryTreeSerializer(
             children, many=True, context=self.context
         ).data

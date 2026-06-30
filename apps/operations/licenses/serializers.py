@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 
+from apps.base.fields import EmployeeNameField
 from apps.base.serializers import BaseSerializer
 from apps.base.constants import UserRole
 from apps.assets.inventory.models import Asset
@@ -54,11 +55,11 @@ class SoftwareLicenseSerializer(BaseSerializer):
         request = self.context.get("request")
         user = request.user if request else None
         if user:
-            if getattr(user, "role", None) == UserRole.EMPLOYEE.value:
+            if getattr(user, "is_employee", False):
                 raise serializers.ValidationError(
                     "Employees cannot create or modify licenses."
                 )
-            if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
+            if not getattr(user, "is_super_admin", False):
                 user_org = getattr(user, "organization", None)
                 org = attrs.get("organization")
                 if user_org and org and org.id != user_org.id:
@@ -98,7 +99,7 @@ class SoftwareLicenseListSerializer(BaseSerializer):
 class LicenseAssignmentSerializer(BaseSerializer):
     """Full serializer for LicenseAssignment."""
 
-    employee_name = serializers.SerializerMethodField()
+    employee_name = EmployeeNameField(source="employee")
     employee_emp_id = serializers.CharField(
         source="employee.employee_id", read_only=True,
     )
@@ -145,11 +146,6 @@ class LicenseAssignmentSerializer(BaseSerializer):
             "license",
             "organization",
         ]
-
-    def get_employee_name(self, obj):
-        if obj.employee and obj.employee.user:
-            return obj.employee.user.get_full_name()
-        return None
 
 
 class LicenseAssignSerializer(serializers.Serializer):
