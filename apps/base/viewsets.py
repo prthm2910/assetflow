@@ -1,22 +1,23 @@
 """
-apps/base/viewsets.py — Base ViewSet and BulkOperationsMixin.
+apps/base/viewsets.py — Base ViewSet.
 
 BaseViewSet provides role-based data scoping (super admin → all, org admin → org, employee → limited).
-StandardResponseMixin auto-wrapes DRF responses in the {success, data} envelope.
-BulkOperationsMixin provides bulk create/update/delete actions.
+StandardResponseMixin auto-wraps DRF responses in the {success, data} envelope.
 """
+
+import logging
 
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.base.permissions import RoleBasedPermission
-from apps.base.services import BulkService
 from apps.base.response import StandardResponseMixin, success_response, error_response
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -196,73 +197,3 @@ class BaseViewSet(StandardResponseMixin, viewsets.ModelViewSet):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
         return None
-
-
-class BulkOperationsMixin(viewsets.GenericViewSet):
-    """
-    Self-sufficient mixin providing bulk-create, bulk-update, and bulk-delete actions.
-
-    Inherits from GenericViewSet so it can stand alone or be mixed into any ViewSet.
-
-    - POST /bulk-create/ — Create multiple records
-    - PUT /bulk-update/ — Update multiple records (by id)
-    - DELETE /bulk-delete/ — Soft-delete multiple records (by id)
-    """
-
-    @action(detail=False, methods=["post"], url_path="bulk-create")
-    def bulk_create(self, request):
-        """Create multiple records in a single request."""
-        
-
-        serializer = self.get_serializer(data=request.data, many=True)
-        serializer.is_valid(raise_exception=True)
-        instances = BulkService.bulk_create(
-            serializer_class=self.get_serializer_class(),
-            validated_data=serializer.validated_data,
-            context=self.get_serializer_context(),
-        )
-        return Response(
-            self.get_serializer(instances, many=True).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-    @action(detail=False, methods=["put"], url_path="bulk-update")
-    def bulk_update(self, request):
-        """Update multiple records in a single request. Client sends HRIDs."""
-        from apps.base.services import BulkService
-
-        updates = (
-            request.data
-            if isinstance(request.data, list)
-            else request.data.get("items", [])
-        )
-        hrid_field = self.lookup_field
-        hrids = [item.get("id") for item in updates if item.get("id")]
-        queryset = self.get_queryset().filter(**{f"{hrid_field}__in": hrids})
-
-        # Map HRIDs to UUIDs for BulkService
-        hrid_to_uuid = {getattr(obj, hrid_field): obj.id for obj in queryset}
-        for item in updates:
-            if "id" in item and item["id"] in hrid_to_uuid:
-                item["id"] = hrid_to_uuid[item["id"]]
-
-        updated_count = BulkService.bulk_update(
-            queryset=queryset,
-            updates=updates,
-            user=request.user,
-        )
-        return Response({"updated": updated_count})
-
-    @action(detail=False, methods=["delete"], url_path="bulk-delete")
-    def bulk_delete(self, request):
-        """Soft-delete multiple records in a single request. Client sends HRIDs."""
-
-        ids = (
-            request.data.get("ids", [])
-            if isinstance(request.data, dict)
-            else request.data
-        )
-        hrid_field = self.lookup_field
-        queryset = self.get_queryset().filter(**{f"{hrid_field}__in": ids})
-        count = BulkService.bulk_soft_delete(queryset)
-        return Response({"deleted": count})
