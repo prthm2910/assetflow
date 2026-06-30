@@ -44,7 +44,7 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
     def scope_for_employee(self, queryset):
         """Employee sees only their own department."""
         user = self.request.user
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if employee and employee.department:
             return queryset.filter(id=employee.department.id)
         return queryset.none()
@@ -58,47 +58,6 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
             return DepartmentListSerializer
         return DepartmentSerializer
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(data=self.get_paginated_response(serializer.data).data)
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(
-            data=serializer.data,
-            message="Department created successfully.",
-            status_code=status.HTTP_201_CREATED,
-        )
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()  # soft-delete
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @action(detail=True, methods=["get"], url_path="employees")
     def employees(self, request, dept_id=None):  # noqa: ARG001
         """List all employees in a department."""
@@ -109,12 +68,7 @@ class DepartmentViewSet(BaseViewSet, BulkOperationsMixin):
             .select_related("user", "department")
             .order_by(*EmployeeViewSet.ordering)
         )
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = EmployeeListSerializer(page, many=True)
-            return success_response(data=self.get_paginated_response(serializer.data).data)
-        serializer = EmployeeListSerializer(queryset, many=True)
-        return success_response(data=serializer.data)
+        return self.paginated_response(queryset, EmployeeListSerializer)
 
 
 class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
@@ -152,7 +106,7 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
     def scope_for_employee(self, queryset):
         """Employee sees only employees in their own department."""
         user = self.request.user
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if employee and employee.department:
             return queryset.filter(department=employee.department)
         return queryset.none()
@@ -163,47 +117,6 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
         if self.action == "create":
             return EmployeeCreateSerializer
         return EmployeeSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(data=self.get_paginated_response(serializer.data).data)
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(
-            data=serializer.data,
-            message="Employee created successfully.",
-            status_code=status.HTTP_201_CREATED,
-        )
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()  # soft-delete
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="manager-chain")
     def manager_chain(self, request, employee_id=None):
@@ -220,15 +133,8 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
     def direct_reports(self, request, employee_id=None):
         """Get direct reports of this employee."""
         employee = self.get_object()
-        reports = Employee.objects.filter(
-            manager=employee, is_deleted=False, is_active=True
-        )
-        page = self.paginate_queryset(reports)
-        if page is not None:
-            serializer = EmployeeListSerializer(page, many=True)
-            return success_response(data=self.get_paginated_response(serializer.data).data)
-        serializer = EmployeeListSerializer(reports, many=True)
-        return success_response(data=serializer.data)
+        reports = Employee.objects.filter(manager=employee).active()
+        return self.paginated_response(reports, EmployeeListSerializer)
 
     @action(detail=True, methods=["get"], url_path="org-chart")
     def org_chart(self, request, employee_id=None):
@@ -240,7 +146,7 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
     def _build_org_chart(self, employee):
         """Recursively build org chart tree."""
         children = []
-        for report in employee.direct_reports.filter(is_deleted=False, is_active=True):
+        for report in employee.direct_reports.active():
             children.append(self._build_org_chart(report))
         return {
             "employee": EmployeeListSerializer(employee).data,
@@ -336,7 +242,7 @@ class EmployeeViewSet(BaseViewSet, BulkOperationsMixin):
             "user", "department", "organization"
         )
 
-        if getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
+        if not getattr(user, "is_super_admin", False):
             user_org = getattr(user, "organization", None)
             if user_org:
                 base_qs = base_qs.filter(organization=user_org)
