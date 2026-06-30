@@ -1,9 +1,7 @@
 """apps/platform/notifications/views.py — ViewSets for Notification."""
 
 from django.utils import timezone
-from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from apps.base.response import success_response
