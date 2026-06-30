@@ -1,43 +1,21 @@
 """
-apps/base/signals.py — Django signals for audit logging.
+apps/platform/audit/signals.py — Django signals for audit logging.
 
-These signals capture create/update/delete actions on tracked models and log them
-to the AuditLog model (when Module 12 is implemented).
+Registered on all pre_save, post_save, and pre_delete events.
+Captures create/update/delete actions and writes AuditLog entries.
 
-audit_post_save: Logs CREATE and UPDATE actions with old/new data diff.
-audit_pre_delete: Logs DELETE action.
-
-Signals are registered in apps/base/apps.py -> ready().
+Signals are registered in apps/platform/audit/apps.py -> ready().
 """
 
 from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
 import logging
 
+from apps.platform.audit.models import AuditLog
+from apps.platform.audit.constants import AuditAction
+from apps.base.middleware import get_current_user, get_current_ip, get_current_request_id
+
 audit_logger = logging.getLogger(__name__)
-
-
-def _get_audit_log_model():
-    """
-    Lazily import AuditLog to avoid circular imports.
-    AuditLog is defined in apps/platform/audit/models.py (Module 12).
-    """
-    try:
-        from apps.platform.audit.models import AuditLog
-
-        return AuditLog
-    except ImportError:
-        return None
-
-
-def _get_request_context():
-    """Get user and IP from thread-local request context."""
-    try:
-        from apps.base.middleware import get_current_ip, get_current_user
-
-        return get_current_user(), get_current_ip()
-    except ImportError:
-        return None, None
 
 
 def _serialize_instance(instance, fields=None):
@@ -72,6 +50,40 @@ def _serialize_instance(instance, fields=None):
     return data
 
 
+def _get_old_data(instance):
+    """Get the old data captured during pre_save."""
+    return getattr(instance, "_old_data", None)
+
+
+def _build_audit_kwargs(instance, action, old_data=None, new_data=None):
+    """Build shared kwargs for AuditLog creation."""
+    kwargs = {
+        "action": action,
+        "model_name": instance.__class__.__name__,
+        "object_id": instance.pk,
+    }
+    if hasattr(instance, "organization"):
+        kwargs["organization"] = instance.organization
+
+    user = get_current_user()
+    if user:
+        kwargs["user"] = user
+
+    ip = get_current_ip()
+    if ip:
+        kwargs["ip_address"] = ip
+
+    request_id = get_current_request_id()
+    if request_id:
+        kwargs["request_id"] = request_id
+
+    if old_data is not None:
+        kwargs["old_data"] = old_data
+    if new_data is not None:
+        kwargs["new_data"] = new_data
+    return kwargs
+
+
 @receiver(pre_save)
 def audit_pre_save(sender, instance, **kwargs):
     """
@@ -92,31 +104,6 @@ def audit_pre_save(sender, instance, **kwargs):
             instance._old_data = None
 
 
-def _get_old_data(instance):
-    """Get the old data captured during pre_save."""
-    return getattr(instance, "_old_data", None)
-
-
-def _build_audit_kwargs(instance, user, ip, action, old_data=None, new_data=None):
-    """Build shared kwargs for AuditLog creation."""
-    kwargs = {
-        "action": action,
-        "model_name": instance.__class__.__name__,
-        "object_id": str(instance.pk),
-    }
-    if hasattr(instance, "organization"):
-        kwargs["organization"] = instance.organization
-    if user:
-        kwargs["user"] = user
-    if ip:
-        kwargs["ip_address"] = ip
-    if old_data is not None:
-        kwargs["old_data"] = old_data
-    if new_data is not None:
-        kwargs["new_data"] = new_data
-    return kwargs
-
-
 @receiver(post_save)
 def audit_post_save(sender, instance, created, **kwargs):
     """
@@ -125,10 +112,6 @@ def audit_post_save(sender, instance, created, **kwargs):
     Logs CREATE with new_data only.
     Logs UPDATE with old_data and new_data.
     """
-    AuditLog = _get_audit_log_model()
-    if AuditLog is None:
-        return
-
     # Skip if sender is AuditLog itself (avoid infinite loop)
     if sender.__name__ == "AuditLog":
         return
@@ -137,13 +120,23 @@ def audit_post_save(sender, instance, created, **kwargs):
     if getattr(sender._meta, "abstract", False):
         return
 
-    user, ip = _get_request_context()
-    action = "create" if created else "update"
+    # Skip Django's built-in models (migrations, contenttypes, sessions, etc.)
+    app_label = sender._meta.app_label
+    if app_label in ("contenttypes", "sessions", "auth", "admin"):
+        return
+    if app_label.startswith("django"):
+        return
+
+    # Skip if model has no organization (can't scope the audit entry)
+    if not hasattr(instance, "organization"):
+        return
+
+    action = AuditAction.CREATE.value if created else AuditAction.UPDATE.value
     new_data = _serialize_instance(instance)
     old_data = None if created else _get_old_data(instance)
 
     kwargs_create = _build_audit_kwargs(
-        instance, user, ip, action,
+        instance, action,
         old_data=old_data, new_data=new_data,
     )
 
@@ -160,10 +153,6 @@ def audit_pre_delete(sender, instance, **kwargs):
     """
     Log DELETE action to AuditLog (before the actual delete).
     """
-    AuditLog = _get_audit_log_model()
-    if AuditLog is None:
-        return
-
     # Skip if sender is AuditLog itself
     if sender.__name__ == "AuditLog":
         return
@@ -172,18 +161,27 @@ def audit_pre_delete(sender, instance, **kwargs):
     if getattr(sender._meta, "abstract", False):
         return
 
-    user, ip = _get_request_context()
+    # Skip Django's built-in models
+    app_label = sender._meta.app_label
+    if app_label in ("contenttypes", "sessions", "auth", "admin"):
+        return
+    if app_label.startswith("django"):
+        return
+
+    # Skip if model has no organization
+    if not hasattr(instance, "organization"):
+        return
+
     old_data = _serialize_instance(instance)
 
     kwargs_create = _build_audit_kwargs(
-        instance, user, ip, "delete",
+        instance, AuditAction.DELETE.value,
         old_data=old_data,
     )
 
-    action = "delete"
     try:
         AuditLog.objects.create(**kwargs_create)
     except Exception:
         audit_logger.exception(
-            "Audit log failed for %s on %s", action, sender.__name__
+            "Audit log failed for delete on %s", sender.__name__
         )
