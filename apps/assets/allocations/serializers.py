@@ -4,9 +4,10 @@ apps/assets/allocations/serializers.py — Serializers for Allocation.
 
 from rest_framework import serializers
 
+from apps.base.fields import EmployeeNameField
 from apps.base.serializers import BaseSerializer
-from apps.base.constants import UserRole
 from apps.assets.allocations.models import Allocation
+from apps.base.utils import validate_tenant_isolation_multi
 from apps.core.employees.models import Employee
 
 
@@ -15,7 +16,7 @@ class AllocationSerializer(BaseSerializer):
 
     asset_name = serializers.CharField(source="asset.name", read_only=True)
     asset_id_hrid = serializers.CharField(source="asset.asset_id", read_only=True)
-    employee_name = serializers.SerializerMethodField()
+    employee_name = EmployeeNameField(source="employee")
     employee_emp_id = serializers.CharField(source="employee.emp_id", read_only=True)
     allocated_by_name = serializers.SerializerMethodField()
     is_current = serializers.SerializerMethodField()
@@ -63,11 +64,6 @@ class AllocationSerializer(BaseSerializer):
             "employee",
         ]
 
-    def get_employee_name(self, obj):
-        if obj.employee and obj.employee.user:
-            return obj.employee.user.get_full_name()
-        return None
-
     def get_allocated_by_name(self, obj):
         if obj.allocated_by:
             return obj.allocated_by.get_full_name()
@@ -82,7 +78,7 @@ class AllocationListSerializer(BaseSerializer):
 
     asset_name = serializers.CharField(source="asset.name", read_only=True)
     asset_id_hrid = serializers.CharField(source="asset.asset_id", read_only=True)
-    employee_name = serializers.SerializerMethodField()
+    employee_name = EmployeeNameField(source="employee")
     employee_emp_id = serializers.CharField(source="employee.emp_id", read_only=True)
     is_current = serializers.SerializerMethodField()
 
@@ -102,11 +98,6 @@ class AllocationListSerializer(BaseSerializer):
             "is_current",
             "organization",
         ]
-
-    def get_employee_name(self, obj):
-        if obj.employee and obj.employee.user:
-            return obj.employee.user.get_full_name()
-        return None
 
     def get_is_current(self, obj):
         return obj.is_current
@@ -152,17 +143,13 @@ class AllocationCreateSerializer(BaseSerializer):
         employee = attrs.get("employee")
 
         # Tenant isolation — non-super-admins can only allocate within their org
-        if user and getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
-            user_org = getattr(user, "organization", None)
-            if user_org:
-                if asset and asset.organization_id != user_org.id:
-                    raise serializers.ValidationError(
-                        {"asset": "This asset does not belong to your organization."}
-                    )
-                if employee and employee.organization_id != user_org.id:
-                    raise serializers.ValidationError(
-                        {"employee": "This employee does not belong to your organization."}
-                    )
+        if user:
+            
+
+            validate_tenant_isolation_multi(user, [
+                ("asset", asset, "asset"),
+                ("employee", employee, "employee"),
+            ])
 
         # Check for active allocation in DB (authoritative source)
         has_active_allocation = Allocation.objects.filter(

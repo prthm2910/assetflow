@@ -11,9 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from apps.base.constants import UserRole
 from apps.assets.requests.constants import RequestStatus
 from apps.base.permissions import RoleBasedPermission
-from apps.base.response import success_response
+from apps.base.response import success_response, error_response
 from apps.base.viewsets import BaseViewSet
-from apps.assets.categories.models import AssetCategory
 from apps.assets.requests.filters import AssetRequestFilterSet
 from apps.assets.requests.models import AssetRequest
 from apps.assets.requests.permissions import IsRequesterOrManagerOrAdmin, IsManagerOrAdmin
@@ -23,6 +22,7 @@ from apps.assets.requests.serializers import (
     AssetRequestCreateSerializer,
     ApproveRejectSerializer,
 )
+from apps.assets.requests.services import AssetRequestService
 
 
 class AssetRequestViewSet(BaseViewSet):
@@ -101,30 +101,14 @@ class AssetRequestViewSet(BaseViewSet):
     def scope_for_employee(self, queryset):
         """Employees see only their own requests."""
         user = self.request.user
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if employee:
             return queryset.filter(requested_by=employee)
         return queryset.none()
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
     def create(self, request, *args, **kwargs):
-        """Create a new asset request. Internal admin/submit endpoint."""
-        return self._submit(request)
+        """Create a new asset request — delegates to submit action."""
+        return self.submit(request)
 
     @action(detail=False, methods=["post"], url_path="submit")
     def submit(self, request):
@@ -137,127 +121,65 @@ class AssetRequestViewSet(BaseViewSet):
         return self._submit(request)
 
     def _submit(self, request):
-        """Shared create logic for both create and submit actions."""
-        data = request.data.copy()
-        user = request.user
-        user_org = getattr(user, "organization", None)
+        """Shared create logic for both create and submit actions.
 
-        # Resolve category to get its organization for super admin path
-        category_id = data.get("asset_category")
-        if category_id and user_org is None:
-            
+        Validates via serializer, then delegates org resolution and
+        employee linking to the service layer.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-            try:
-                cat_obj = AssetCategory.objects.select_related("organization").get(
-                    pk=category_id
-                )
-                submit_org = cat_obj.organization
-            except AssetCategory.DoesNotExist:
-                submit_org = None
-        else:
-            submit_org = user_org
-
-        # Inject requested_by from the current user's employee profile
-        employee = getattr(user, "employee_profile", None)
-        if not employee:
-            return Response(
-                {"error": "No employee profile found for the current user."},
-                status=status.HTTP_400_BAD_REQUEST,
+        request_obj, error = AssetRequestService.submit(
+            request.user, serializer.validated_data
+        )
+        if error:
+            return error_response(
+                message=error,
+                code="SUBMIT_FAILED",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(
-            organization=submit_org,
-            requested_by=employee,
-            status=RequestStatus.PENDING.value,
-        )
-
         return success_response(
-            data=AssetRequestSerializer(serializer.instance).data,
+            data=AssetRequestSerializer(
+                request_obj, context=self.get_serializer_context()
+            ).data,
             message="Asset request submitted successfully.",
             status_code=status.HTTP_201_CREATED,
         )
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()  # soft-delete
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @action(detail=True, methods=["post"], url_path="approve")
     def approve(self, request, req_id=None):
-        """
-        Approve a pending asset request.
-
-        Sets status to 'approved' and records the reviewer.
-        """
-        instance = self.get_object()
-
-        if instance.status != RequestStatus.PENDING.value:
-            return Response(
-                {"error": "Only pending requests can be approved."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        serializer = ApproveRejectSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        now = timezone.now()
-        instance.status = RequestStatus.APPROVED.value
-        instance.reviewed_by = request.user
-        instance.reviewed_at = now
-        instance.review_notes = serializer.validated_data.get("review_notes", "")
-        instance.updated_by = request.user
-        instance.save(
-            update_fields=[
-                "status",
-                "reviewed_by",
-                "reviewed_at",
-                "review_notes",
-                "updated_at",
-                "updated_by",
-            ]
-        )
-
-        return success_response(
-            data=AssetRequestSerializer(instance).data,
-            message="Asset request approved.",
+        """Approve a pending asset request."""
+        return self._review(
+            request, req_id,
+            target_status=RequestStatus.APPROVED.value,
+            action_verb="approved",
+            success_message="Asset request approved.",
         )
 
     @action(detail=True, methods=["post"], url_path="reject")
     def reject(self, request, req_id=None):
-        """
-        Reject a pending asset request.
+        """Reject a pending asset request."""
+        return self._review(
+            request, req_id,
+            target_status=RequestStatus.REJECTED.value,
+            action_verb="rejected",
+            success_message="Asset request rejected.",
+        )
 
-        Sets status to 'rejected' and records the reviewer and notes.
-        """
+    def _review(self, request, req_id, target_status, action_verb, success_message):
+        """Shared logic for approve/reject actions."""
         instance = self.get_object()
 
-        if instance.status != RequestStatus.PENDING.value:
-            return Response(
-                {"error": "Only pending requests can be rejected."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        err = self.require_status(instance, RequestStatus.PENDING.value, action_verb)
+        if err:
+            return err
 
         serializer = ApproveRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         now = timezone.now()
-        instance.status = RequestStatus.REJECTED.value
+        instance.status = target_status
         instance.reviewed_by = request.user
         instance.reviewed_at = now
         instance.review_notes = serializer.validated_data.get("review_notes", "")
@@ -275,7 +197,7 @@ class AssetRequestViewSet(BaseViewSet):
 
         return success_response(
             data=AssetRequestSerializer(instance).data,
-            message="Asset request rejected.",
+            message=success_message,
         )
 
     @action(detail=True, methods=["post"], url_path="cancel")
@@ -289,23 +211,21 @@ class AssetRequestViewSet(BaseViewSet):
         """
         instance = self.get_object()
         user = request.user
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
 
         # Only the requester (not their manager) can cancel via this action.
         # Managers use soft-delete (destroy) instead. Admins always pass via permission class.
-        role = getattr(user, "role", None)
-        if role not in (UserRole.SUPER_ADMIN.value, UserRole.ORG_ADMIN.value):
+        if not (user.is_super_admin or user.is_org_admin):
             if employee and instance.requested_by_id != employee.id:
-                return Response(
-                    {"error": "You can only cancel your own requests."},
-                    status=status.HTTP_403_FORBIDDEN,
+                return error_response(
+                    message="You can only cancel your own requests.",
+                    code="FORBIDDEN",
+                    status_code=status.HTTP_403_FORBIDDEN,
                 )
 
-        if instance.status != RequestStatus.PENDING.value:
-            return Response(
-                {"error": "Only pending requests can be cancelled."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        err = self.require_status(instance, RequestStatus.PENDING.value, "cancelled")
+        if err:
+            return err
 
         instance.delete()  # soft-delete
         return Response(status=status.HTTP_204_NO_CONTENT)

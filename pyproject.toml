@@ -67,3 +67,34 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
+# ==============================================================================
+# Test Coverage Configuration
+# ==============================================================================
+
+[tool.coverage.run]
+source = ["apps"]
+omit = [
+    "**/migrations/*",
+    "**/tests/*",
+    "**/admin.py",
+    "apps/base/apps.py",  # signal imports cause PLC0415
+    "conftest.py",
+]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"

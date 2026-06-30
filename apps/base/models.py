@@ -99,33 +99,3 @@ class BaseModel(models.Model):
         self.deleted_at = None
         self.save(update_fields=["is_deleted", "is_active", "deleted_at", "updated_at"])
 
-
-class BaseUserManager(models.Manager):
-    """Manager for BaseUser that excludes inactive users from default queries."""
-
-    def get_queryset(self):
-        return super().get_queryset().filter(is_active=True)
-
-
-class BaseUser(models.Model):
-    """
-    Minimal base user model used as AUTH_USER_MODEL before custom User is ready.
-    Module 2 replaces this with the full User model (AbstractBaseUser + PermissionsMixin).
-    """
-
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    objects = BaseUserManager()
-
-    class Meta:
-        abstract = True
-
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}"

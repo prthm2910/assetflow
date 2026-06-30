@@ -94,13 +94,6 @@ SIMPLE_JWT = get_simple_jwt_config(env)
 SPECTACULAR_SETTINGS = SPECTACULAR_SETTINGS
 
 # ==============================================================================
-# 11. CORS Configuration
-# ==============================================================================
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-if not DEBUG:
-    CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
-
-# ==============================================================================
 # 12. Default Auto Field
 # ==============================================================================
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -109,5 +102,56 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # 13. Logging Configuration
 # ==============================================================================
 LOGGING = LOGGING
+
+# ==============================================================================
+# 14. Cache Configuration (Redis)
+# ==============================================================================
+REDIS_URL = env("REDIS_URL")
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+# ==============================================================================
+# 15. Email Configuration
+# ==============================================================================
+EMAIL_BACKEND = env("EMAIL_BACKEND")
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env.int("EMAIL_PORT")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+
+# ==============================================================================
+# 16. Celery Configuration
+# ==============================================================================
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# ==============================================================================
+# 17. Security Headers
+# ==============================================================================
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# ==============================================================================
+# 18. CORS
+# ==============================================================================
+CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
+if CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = []
+else:
+    CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
 
 logger.info("AssetFlow settings initialization completed")

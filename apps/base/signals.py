@@ -12,6 +12,9 @@ Signals are registered in apps/base/apps.py -> ready().
 
 from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
+import logging
+
+audit_logger = logging.getLogger(__name__)
 
 
 def _get_audit_log_model():
@@ -94,6 +97,26 @@ def _get_old_data(instance):
     return getattr(instance, "_old_data", None)
 
 
+def _build_audit_kwargs(instance, user, ip, action, old_data=None, new_data=None):
+    """Build shared kwargs for AuditLog creation."""
+    kwargs = {
+        "action": action,
+        "model_name": instance.__class__.__name__,
+        "object_id": str(instance.pk),
+    }
+    if hasattr(instance, "organization"):
+        kwargs["organization"] = instance.organization
+    if user:
+        kwargs["user"] = user
+    if ip:
+        kwargs["ip_address"] = ip
+    if old_data is not None:
+        kwargs["old_data"] = old_data
+    if new_data is not None:
+        kwargs["new_data"] = new_data
+    return kwargs
+
+
 @receiver(post_save)
 def audit_post_save(sender, instance, created, **kwargs):
     """
@@ -119,33 +142,17 @@ def audit_post_save(sender, instance, created, **kwargs):
     new_data = _serialize_instance(instance)
     old_data = None if created else _get_old_data(instance)
 
-    # Build kwargs for AuditLog
-    kwargs_create = {
-        "action": action,
-        "model_name": sender.__name__,
-        "object_id": str(instance.pk),
-        "new_data": new_data,
-    }
-
-    # Add org from instance if available
-    if hasattr(instance, "organization"):
-        kwargs_create["organization"] = instance.organization
-
-    # Add user if available
-    if user:
-        kwargs_create["user"] = user
-    if ip:
-        kwargs_create["ip_address"] = ip
-
-    # Only add old_data for updates
-    if not created:
-        kwargs_create["old_data"] = old_data
+    kwargs_create = _build_audit_kwargs(
+        instance, user, ip, action,
+        old_data=old_data, new_data=new_data,
+    )
 
     try:
         AuditLog.objects.create(**kwargs_create)
     except Exception:
-        # Don't let audit logging failures break the main operation
-        pass
+        audit_logger.exception(
+            "Audit log failed for %s on %s", action, sender.__name__
+        )
 
 
 @receiver(pre_delete)
@@ -168,25 +175,15 @@ def audit_pre_delete(sender, instance, **kwargs):
     user, ip = _get_request_context()
     old_data = _serialize_instance(instance)
 
-    kwargs_create = {
-        "action": "delete",
-        "model_name": sender.__name__,
-        "object_id": str(instance.pk),
-        "old_data": old_data,
-    }
+    kwargs_create = _build_audit_kwargs(
+        instance, user, ip, "delete",
+        old_data=old_data,
+    )
 
-    # Add org from instance if available
-    if hasattr(instance, "organization"):
-        kwargs_create["organization"] = instance.organization
-
-    # Add user if available
-    if user:
-        kwargs_create["user"] = user
-    if ip:
-        kwargs_create["ip_address"] = ip
-
+    action = "delete"
     try:
         AuditLog.objects.create(**kwargs_create)
     except Exception:
-        # Don't let audit logging failures break the main operation
-        pass
+        audit_logger.exception(
+            "Audit log failed for %s on %s", action, sender.__name__
+        )

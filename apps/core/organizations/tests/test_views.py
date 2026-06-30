@@ -92,7 +92,7 @@ class TestOrganizationViewSetList:
         """Super admin should see all organizations."""
         response = super_admin_client.get("/api/v1/organizations/")
         assert response.status_code == status.HTTP_200_OK
-        assert "results" in response.data
+        assert "results" in response.data.get("data", {})
 
     def test_org_admin_sees_only_own_org(self, org_admin_client, org, db):
         """Org admin should see only their own organization."""
@@ -104,9 +104,8 @@ class TestOrganizationViewSetList:
         )
         response = org_admin_client.get("/api/v1/organizations/")
         assert response.status_code == status.HTTP_200_OK
-        org_ids = [o["org_id"] for o in response.data.get("data", [])] + (
-            [o["org_id"] for o in response.data.get("results", [])]
-        )
+        results = response.data.get("data", {}).get("results", [])
+        org_ids = [o["org_id"] for o in results]
         assert org.org_id in org_ids
         assert other_org.org_id not in org_ids
 
@@ -114,9 +113,8 @@ class TestOrganizationViewSetList:
         """Employee should see only their own organization."""
         response = employee_client.get("/api/v1/organizations/")
         assert response.status_code == status.HTTP_200_OK
-        org_ids = [o["org_id"] for o in response.data.get("data", [])] + (
-            [o["org_id"] for o in response.data.get("results", [])]
-        )
+        results = response.data.get("data", {}).get("results", [])
+        org_ids = [o["org_id"] for o in results]
         assert org.org_id in org_ids
 
     def test_unauthenticated_denied(self, api_client):

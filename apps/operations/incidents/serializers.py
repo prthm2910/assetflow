@@ -2,20 +2,21 @@
 
 from rest_framework import serializers
 
+from apps.base.fields import EmployeeNameField
 from apps.base.serializers import BaseSerializer
-from apps.base.constants import UserRole
 from apps.core.employees.models import Employee
 from apps.operations.incidents.models import Incident
+from apps.base.utils import validate_tenant_isolation
 
 
 class IncidentSerializer(BaseSerializer):
     """Full serializer for Incident — all fields."""
 
-    reported_by_name = serializers.SerializerMethodField()
+    reported_by_name = EmployeeNameField(source="reported_by")
     reported_by_employee_id = serializers.CharField(
         source="reported_by.employee_id", read_only=True,
     )
-    assigned_to_name = serializers.SerializerMethodField()
+    assigned_to_name = EmployeeNameField(source="assigned_to")
     assigned_to_employee_id = serializers.CharField(
         source="assigned_to.employee_id", read_only=True,
     )
@@ -26,7 +27,6 @@ class IncidentSerializer(BaseSerializer):
         model = Incident
         fields = [
             # BaseModel fields
-            "id",
             "is_active",
             "is_deleted",
             "created_at",
@@ -75,7 +75,7 @@ class IncidentSerializer(BaseSerializer):
         """Employees cannot modify review-level fields via PATCH."""
         request = self.context.get("request")
         user = request.user if request else None
-        if user and getattr(user, "role", None) == UserRole.EMPLOYEE.value:
+        if user and getattr(user, "is_employee", False):
             restricted = {"assigned_to", "resolution_notes", "status"}
             for field in restricted:
                 if field in attrs:
@@ -84,21 +84,11 @@ class IncidentSerializer(BaseSerializer):
                     )
         return attrs
 
-    def get_reported_by_name(self, obj):
-        if obj.reported_by and obj.reported_by.user:
-            return obj.reported_by.user.get_full_name()
-        return None
-
-    def get_assigned_to_name(self, obj):
-        if obj.assigned_to and obj.assigned_to.user:
-            return obj.assigned_to.user.get_full_name()
-        return None
-
 
 class IncidentListSerializer(BaseSerializer):
     """Lightweight serializer for list views."""
 
-    reported_by_name = serializers.SerializerMethodField()
+    reported_by_name = EmployeeNameField(source="reported_by")
     reported_by_employee_id = serializers.CharField(
         source="reported_by.employee_id", read_only=True,
     )
@@ -123,11 +113,6 @@ class IncidentListSerializer(BaseSerializer):
             "created_at",
             "organization",
         ]
-
-    def get_reported_by_name(self, obj):
-        if obj.reported_by and obj.reported_by.user:
-            return obj.reported_by.user.get_full_name()
-        return None
 
 
 class IncidentCreateSerializer(BaseSerializer):
@@ -183,12 +168,10 @@ class IncidentCreateSerializer(BaseSerializer):
         asset = attrs.get("asset")
 
         # Tenant isolation — non-super-admins can only report within their org
-        if user and getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
-            user_org = getattr(user, "organization", None)
-            if user_org and asset and asset.organization_id != user_org.id:
-                raise serializers.ValidationError(
-                    {"asset": "This asset does not belong to your organization."}
-                )
+        if user:
+            
+
+            validate_tenant_isolation(user, "asset", asset, "asset")
         return attrs
 
 

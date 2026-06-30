@@ -167,7 +167,7 @@ class TestAssetRequestListSubmit:
         response = create_request(super_admin_client, organization, employee, asset_category)
         # Super admin has no employee_profile → blocked
         assert response.status_code == 400
-        assert "No employee profile" in response.json()["error"]
+        assert "No employee profile" in response.json()["error"]["message"]
 
     def test_submit_requires_employee_profile(
         self, org_admin_client, organization, asset_category

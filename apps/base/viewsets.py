@@ -2,6 +2,7 @@
 apps/base/viewsets.py — Base ViewSet and BulkOperationsMixin.
 
 BaseViewSet provides role-based data scoping (super admin → all, org admin → org, employee → limited).
+StandardResponseMixin auto-wrapes DRF responses in the {success, data} envelope.
 BulkOperationsMixin provides bulk create/update/delete actions.
 """
 
@@ -13,8 +14,9 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.base.constants import UserRole
 from apps.base.permissions import RoleBasedPermission
+from apps.base.services import BulkService
+from apps.base.response import StandardResponseMixin, success_response, error_response
 
 
 # ==============================================================================
@@ -30,7 +32,7 @@ from apps.base.permissions import RoleBasedPermission
     partial_update=extend_schema(description="Partially update a record."),
     destroy=extend_schema(description="Soft delete a record."),
 )
-class BaseViewSet(viewsets.ModelViewSet):
+class BaseViewSet(StandardResponseMixin, viewsets.ModelViewSet):
     """
     Base ViewSet with role-based data scoping and permission controls.
 
@@ -79,7 +81,7 @@ class BaseViewSet(viewsets.ModelViewSet):
         model = queryset.model
 
         # Super admin sees everything
-        if getattr(user, "role", None) == UserRole.SUPER_ADMIN.value:
+        if user.is_super_admin:
             return queryset
 
         # Filter by organization if the model has an organization field
@@ -89,7 +91,7 @@ class BaseViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(organization=user_org)
 
         # Employee: apply additional restrictions
-        if getattr(user, "role", None) == UserRole.EMPLOYEE.value:
+        if user.is_employee:
             queryset = self.scope_for_employee(queryset)
 
         return queryset
@@ -140,6 +142,61 @@ class BaseViewSet(viewsets.ModelViewSet):
             kwargs["updated_by"] = self.request.user
         serializer.save(**kwargs)
 
+    def perform_destroy(self, instance):
+        """Soft-delete via BaseModel.delete(). Returns 204 No Content."""
+        instance.delete()  # BaseModel.delete() → soft-delete
+
+    def paginated_response(self, queryset, serializer_class):
+        """
+        Paginate a queryset and return a standardized response.
+
+        Replaces the repetitive 5-line pagination pattern in custom actions.
+
+        Args:
+            queryset: The Django QuerySet to paginate.
+            serializer_class: The serializer class to use.
+
+        Returns:
+            Response with paginated or full data wrapped in success_response.
+        """
+        page = self.paginate_queryset(queryset)
+        serializer = serializer_class(page if page is not None else queryset, many=True)
+        if page is not None:
+            return success_response(data=self.get_paginated_response(serializer.data).data)
+        return success_response(data=serializer.data)
+
+    def require_status(self, instance, expected_status, action_name=None):
+        """
+        Validate that an instance has the expected status before a workflow action.
+
+        Returns an error Response if status doesn't match, or None if valid.
+
+        Example:
+            err = self.require_status(instance, "pending", "approve")
+            if err:
+                return err
+
+        Args:
+            instance: The model instance to check.
+            expected_status: The required status value.
+            action_name: Optional action verb for the error message.
+
+        Returns:
+            Response on failure, None on success.
+        """
+
+        if instance.status != expected_status:
+            verb = f" {action_name}" if action_name else ""
+            return error_response(
+                message=(
+                    f"Only records with status '{expected_status}' can be{verb}. "
+                    f"Current status: '{instance.status}'."
+                ),
+                code="INVALID_STATUS",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        return None
+
 
 class BulkOperationsMixin(viewsets.GenericViewSet):
     """
@@ -155,7 +212,7 @@ class BulkOperationsMixin(viewsets.GenericViewSet):
     @action(detail=False, methods=["post"], url_path="bulk-create")
     def bulk_create(self, request):
         """Create multiple records in a single request."""
-        from apps.base.services import BulkService
+        
 
         serializer = self.get_serializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
@@ -199,7 +256,6 @@ class BulkOperationsMixin(viewsets.GenericViewSet):
     @action(detail=False, methods=["delete"], url_path="bulk-delete")
     def bulk_delete(self, request):
         """Soft-delete multiple records in a single request. Client sends HRIDs."""
-        from apps.base.services import BulkService
 
         ids = (
             request.data.get("ids", [])

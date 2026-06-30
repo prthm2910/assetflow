@@ -4,6 +4,7 @@ apps/assets/inventory/serializers.py — Serializers for Asset.
 
 from rest_framework import serializers
 
+from apps.base.fields import EmployeeNameField
 from apps.assets.inventory.constants import AssetStatus
 from apps.base.serializers import BaseSerializer
 from apps.assets.inventory.models import Asset
@@ -15,7 +16,7 @@ class AssetSerializer(BaseSerializer):
     category_name = serializers.CharField(
         source="category.name", read_only=True, allow_null=True
     )
-    assigned_to_name = serializers.SerializerMethodField()
+    assigned_to_name = EmployeeNameField(source="assigned_to")
 
     class Meta:
         model = Asset
@@ -56,11 +57,6 @@ class AssetSerializer(BaseSerializer):
             "updated_by",
         ]
 
-    def get_assigned_to_name(self, obj):
-        if obj.assigned_to and obj.assigned_to.user:
-            return obj.assigned_to.user.get_full_name()
-        return None
-
     def validate_organization(self, value):
         if self.instance and self.instance.organization_id != value.id:
             raise serializers.ValidationError("Organization cannot be changed after creation.")
@@ -73,7 +69,7 @@ class AssetListSerializer(BaseSerializer):
     category_name = serializers.CharField(
         source="category.name", read_only=True, allow_null=True
     )
-    assigned_to_name = serializers.SerializerMethodField()
+    assigned_to_name = EmployeeNameField(source="assigned_to")
 
     class Meta:
         model = Asset
@@ -94,11 +90,6 @@ class AssetListSerializer(BaseSerializer):
             "location",
         ]
         # is_deleted inherited read-only from BaseSerializer
-
-    def get_assigned_to_name(self, obj):
-        if obj.assigned_to and obj.assigned_to.user:
-            return obj.assigned_to.user.get_full_name()
-        return None
 
 
 class AssetStatusChangeSerializer(serializers.Serializer):

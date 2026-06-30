@@ -28,6 +28,7 @@ LOCAL_APPS = [
     "apps.assets.requests",
     "apps.operations.incidents",
     "apps.operations.licenses",
+    "apps.platform.notifications",
 ]
 
 # ==============================================================================
@@ -44,7 +45,8 @@ DJANGO_DEFAULT_MIDDLEWARE = [
 ]
 
 LOCAL_MIDDLEWARE = [
-    "apps.base.middleware.RequestMiddleware",  # Thread-local user/IP for audit signals
+    "apps.base.middleware.RequestMiddleware",     # Thread-local user/IP for audit signals
+    "apps.base.middleware.RequestIDMiddleware",   # X-Request-ID for request tracing
 ]
 
 # ==============================================================================

@@ -3,6 +3,7 @@ apps/base/services.py — Bulk service for mass database operations.
 """
 
 from django.utils import timezone
+from django.db import transaction
 
 
 class BulkService:
@@ -32,7 +33,10 @@ class BulkService:
     @staticmethod
     def bulk_update(queryset, updates, user=None):
         """
-        Update multiple records with individual field values.
+        Update multiple records efficiently using Django's bulk_update().
+
+        Generates a single SQL UPDATE with CASE WHEN instead of N individual
+        UPDATE queries. All updates run inside a transaction.
 
         Args:
             queryset: The Django QuerySet to update.
@@ -42,21 +46,38 @@ class BulkService:
         Returns:
             Number of records updated.
         """
-        from django.db import transaction
 
-        count = 0
+        if not updates:
+            return 0
+
         with transaction.atomic():
+            # Build model instances from update dicts
+            objs = []
+            fields_to_update = set()
             for item in updates:
                 obj_id = item.pop("id", None)
                 if not obj_id:
                     continue
-                update_fields = {
-                    **item,
-                    "updated_by": user,
-                    "updated_at": timezone.now(),
-                }
-                count += queryset.filter(id=obj_id).update(**update_fields)
-        return count
+                try:
+                    obj = queryset.get(id=obj_id)
+                except queryset.model.DoesNotExist:
+                    continue
+                for field, value in item.items():
+                    setattr(obj, field, value)
+                    fields_to_update.add(field)
+                if user:
+                    obj.updated_by = user
+                    fields_to_update.add("updated_by")
+                obj.updated_at = timezone.now()
+                fields_to_update.add("updated_at")
+                objs.append(obj)
+
+            if not objs:
+                return 0
+
+            return queryset.model.objects.bulk_update(
+                objs, fields=list(fields_to_update)
+            )
 
     @staticmethod
     def bulk_soft_delete(queryset):

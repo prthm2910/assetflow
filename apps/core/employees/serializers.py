@@ -9,7 +9,22 @@ from apps.base.serializers import BaseSerializer
 from apps.core.employees.models import Department, Employee
 
 
+def _get_active_employee_count(department):
+    return department.employees.active().count()
+
+
 User = get_user_model()
+
+
+def _validate_employee_org(attrs: dict) -> None:
+    """Shared cross-tenant check: employee user must belong to same org."""
+    user = attrs.get("user")
+    organization = attrs.get("organization")
+    if user and organization:
+        if user.organization and user.organization != organization:
+            raise serializers.ValidationError(
+                {"user": "The selected user does not belong to this organization."}
+            )
 
 
 class DepartmentSerializer(BaseSerializer):
@@ -47,7 +62,7 @@ class DepartmentSerializer(BaseSerializer):
         ]
 
     def get_employee_count(self, obj):
-        return obj.employees.filter(is_deleted=False, is_active=True).count()
+        return _get_active_employee_count(obj)
 
 
 class DepartmentListSerializer(BaseSerializer):
@@ -68,7 +83,7 @@ class DepartmentListSerializer(BaseSerializer):
         ]
 
     def get_employee_count(self, obj):
-        return obj.employees.filter(is_deleted=False, is_active=True).count()
+        return _get_active_employee_count(obj)
 
 
 class EmployeeSerializer(BaseSerializer):
@@ -129,17 +144,11 @@ class EmployeeSerializer(BaseSerializer):
         return None
 
     def get_direct_report_count(self, obj):
-        return obj.direct_reports.filter(is_deleted=False, is_active=True).count()
+        return obj.direct_reports.active().count()
 
     def validate(self, attrs: dict) -> dict:
         """Cross-tenant prevention: employee must belong to same org as user."""
-        user = attrs.get("user")
-        organization = attrs.get("organization")
-        if user and organization:
-            if user.organization and user.organization != organization:
-                raise serializers.ValidationError(
-                    {"user": "The selected user does not belong to this organization."}
-                )
+        _validate_employee_org(attrs)
         return attrs
 
 
@@ -184,13 +193,7 @@ class EmployeeCreateSerializer(BaseSerializer):
         return value
 
     def validate(self, attrs: dict) -> dict:
-        user = attrs.get("user")
-        organization = attrs.get("organization")
-        if user and organization:
-            if user.organization and user.organization != organization:
-                raise serializers.ValidationError(
-                    {"user": "The selected user does not belong to this organization."}
-                )
+        _validate_employee_org(attrs)
         # Prevent self-management (skip on create where instance is None)
         manager = attrs.get("manager")
         instance = getattr(self, "instance", None)

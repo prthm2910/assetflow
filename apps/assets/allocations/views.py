@@ -10,7 +10,9 @@ from rest_framework.response import Response
 
 from apps.base.constants import UserRole
 from apps.assets.inventory.constants import AssetStatus
-from apps.base.response import success_response
+from apps.assets.inventory.models import Asset
+from apps.assets.inventory.services import AssetService
+from apps.base.response import success_response, error_response
 from apps.base.viewsets import BaseViewSet
 from apps.assets.allocations.filters import AllocationFilterSet
 from apps.assets.allocations.models import Allocation
@@ -70,44 +72,20 @@ class AllocationViewSet(BaseViewSet):
     def scope_for_employee(self, queryset):
         """Employees see only allocations for their own employee record."""
         user = self.request.user
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if employee:
             return queryset.filter(employee=employee)
         return queryset.none()
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
 
     def create(self, request, *args, **kwargs):
         """Allocate an asset to an employee. Updates asset status to 'allocated'."""
         data = request.data.copy()
         user = request.user
-        user_org = getattr(user, "organization", None)
-
-        # Resolve asset to get its organization (needed for super admins with no own org)
         asset_id = data.get("asset")
-        if asset_id:
-            from apps.assets.inventory.models import Asset
-            try:
-                asset_obj = Asset.objects.select_related("organization").get(pk=asset_id)
-                alloc_org = user_org or asset_obj.organization
-            except Asset.DoesNotExist:
-                alloc_org = user_org
-        else:
-            alloc_org = user_org
+
+        alloc_org = AssetService.resolve_organization(
+            user, related_model=Asset, related_id=asset_id
+        )
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -129,29 +107,14 @@ class AllocationViewSet(BaseViewSet):
             status_code=status.HTTP_201_CREATED,
         )
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         # is_current checks returned_at — not the BaseModel soft-delete flag
         if instance.is_current:
             asset = instance.asset
-            update_fields = ["status", "updated_at"]
+            update_fields = ["status", "updated_at", "updated_by"]
             if hasattr(asset, "updated_by"):
                 asset.updated_by = request.user
-                update_fields.append("updated_by")
             asset.status = AssetStatus.AVAILABLE.value
             with transaction.atomic():
                 asset.save(update_fields=update_fields)
@@ -166,14 +129,7 @@ class AllocationViewSet(BaseViewSet):
         queryset = self.filter_queryset(
             self.get_queryset().filter(returned_at__isnull=True)
         )
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
+        return self.paginated_response(queryset, self.get_serializer_class())
 
     @action(detail=True, methods=["post"], url_path="transfer")
     def transfer(self, request, alloc_id=None):
@@ -186,9 +142,10 @@ class AllocationViewSet(BaseViewSet):
         current_allocation = self.get_object()
 
         if not current_allocation.is_current:
-            return Response(
-                {"error": "This allocation is already returned."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="This allocation is already returned.",
+                code="ALREADY_RETURNED",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = TransferSerializer(data=request.data)
@@ -199,9 +156,10 @@ class AllocationViewSet(BaseViewSet):
 
         # Cross-org guard — target employee must be in the same org as the allocation
         if new_employee.organization != current_allocation.organization:
-            return Response(
-                {"error": "Cannot transfer to an employee of a different organization."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="Cannot transfer to an employee of a different organization.",
+                code="CROSS_ORG_TRANSFER",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         now = timezone.now()
@@ -247,9 +205,10 @@ class AllocationViewSet(BaseViewSet):
         instance = self.get_object()
 
         if not instance.is_current:
-            return Response(
-                {"error": "This asset has already been returned."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="This asset has already been returned.",
+                code="ALREADY_RETURNED",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         notes = request.data.get("notes", "")

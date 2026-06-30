@@ -3,13 +3,14 @@
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from apps.base.constants import UserRole
+from apps.assets.inventory.models import Asset
+from apps.assets.inventory.services import AssetService
 from apps.operations.incidents.constants import IncidentStatus
 from apps.base.permissions import RoleBasedPermission
-from apps.base.response import success_response
+from apps.base.response import success_response, error_response
 from apps.base.viewsets import BaseViewSet
 from apps.core.employees.models import Employee
 from apps.operations.incidents.filters import IncidentFilterSet
@@ -105,26 +106,10 @@ class IncidentViewSet(BaseViewSet):
     def scope_for_employee(self, queryset):
         """Employees see only incidents they reported."""
         user = self.request.user
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if employee:
             return queryset.filter(reported_by=employee)
         return queryset.none()
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
 
     def create(self, request, *args, **kwargs):
         """Create a new incident. Internal admin endpoint."""
@@ -144,27 +129,19 @@ class IncidentViewSet(BaseViewSet):
         """Shared create logic for both create and report actions."""
         data = request.data.copy()
         user = request.user
-        user_org = getattr(user, "organization", None)
-
-        # Resolve asset to get its organization for super admin path
         asset_id = data.get("asset")
-        if asset_id and user_org is None:
-            from apps.assets.inventory.models import Asset
 
-            try:
-                asset_obj = Asset.objects.select_related("organization").get(pk=asset_id)
-                report_org = asset_obj.organization
-            except Asset.DoesNotExist:
-                report_org = None
-        else:
-            report_org = user_org
+        report_org = AssetService.resolve_organization(
+            user, related_model=Asset, related_id=asset_id
+        )
 
         # Resolve reported_by from the current user's employee profile
-        employee = getattr(user, "employee_profile", None)
+        employee = user.employee
         if not employee:
-            return Response(
-                {"error": "No employee profile found for the current user."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="No employee profile found for the current user.",
+                code="NO_EMPLOYEE_PROFILE",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = self.get_serializer(data=data)
@@ -181,25 +158,6 @@ class IncidentViewSet(BaseViewSet):
             status_code=status.HTTP_201_CREATED,
         )
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()  # soft-delete
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @action(detail=True, methods=["post"], url_path="assign")
     def assign(self, request, inc_id=None):
         """
@@ -211,9 +169,7 @@ class IncidentViewSet(BaseViewSet):
 
         employee_qs = Employee.objects.filter(
             organization=instance.organization,
-            is_active=True,
-            is_deleted=False,
-        )
+        ).active()
         serializer = AssignSerializer(
             data=request.data,
             context={"request": request},
@@ -243,17 +199,12 @@ class IncidentViewSet(BaseViewSet):
 
     @action(detail=True, methods=["post"], url_path="start")
     def start_work(self, request, inc_id=None):
-        """
-        Transition incident from open to in_progress.
-        """
+        """Transition incident from open to in_progress."""
         instance = self.get_object()
 
-        if instance.status != IncidentStatus.OPEN.value:
-            return error_response(
-                message=f"Only open incidents can be started. Current status: {instance.status}",
-                code="INVALID_STATUS",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
+        err = self.require_status(instance, IncidentStatus.OPEN.value, "started")
+        if err:
+            return err
 
         instance.status = IncidentStatus.IN_PROGRESS.value
         instance.updated_by = request.user
@@ -266,18 +217,12 @@ class IncidentViewSet(BaseViewSet):
 
     @action(detail=True, methods=["post"], url_path="resolve")
     def resolve(self, request, inc_id=None):
-        """
-        Mark an incident as resolved.
-
-        Requires the incident to be in progress. Sets resolved_at timestamp.
-        """
+        """Mark an incident as resolved."""
         instance = self.get_object()
 
-        if instance.status != IncidentStatus.IN_PROGRESS.value:
-            return Response(
-                {"error": f"Only in_progress incidents can be resolved. Current status: {instance.status}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        err = self.require_status(instance, IncidentStatus.IN_PROGRESS.value, "resolved")
+        if err:
+            return err
 
         serializer = ResolveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -306,18 +251,12 @@ class IncidentViewSet(BaseViewSet):
 
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, inc_id=None):
-        """
-        Close a resolved incident.
-
-        Requires the incident to be resolved. Sets closed_at timestamp.
-        """
+        """Close a resolved incident."""
         instance = self.get_object()
 
-        if instance.status != IncidentStatus.RESOLVED.value:
-            return Response(
-                {"error": f"Only resolved incidents can be closed. Current status: {instance.status}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        err = self.require_status(instance, IncidentStatus.RESOLVED.value, "closed")
+        if err:
+            return err
 
         serializer = CloseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -356,9 +295,10 @@ class IncidentViewSet(BaseViewSet):
 
         attachment_url = request.data.get("attachment_url")
         if not attachment_url:
-            return Response(
-                {"error": "attachment_url is required."},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                message="attachment_url is required.",
+                code="MISSING_FIELD",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
         attachments = instance.attachments or []

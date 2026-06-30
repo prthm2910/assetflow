@@ -71,51 +71,6 @@ class SoftwareLicenseViewSet(BaseViewSet):
             return SoftwareLicenseListSerializer
         return SoftwareLicenseSerializer
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response(data=serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return success_response(data=serializer.data)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return success_response(
-            data=SoftwareLicenseSerializer(serializer.instance).data,
-            message="License created successfully.",
-            status_code=status.HTTP_201_CREATED,
-        )
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(data=serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @action(detail=True, methods=["post"], url_path="assign")
     def assign(self, request, lic_id=None):
         """
@@ -127,12 +82,9 @@ class SoftwareLicenseViewSet(BaseViewSet):
 
         employee_qs = Employee.objects.filter(
             organization=instance.organization,
-            is_active=True,
-            is_deleted=False,
-        )
+        ).active()
         asset_qs = Asset.objects.filter(
             organization=instance.organization,
-            is_deleted=False,
         )
         serializer = LicenseAssignSerializer(
             data=request.data,
@@ -258,8 +210,6 @@ class SoftwareLicenseViewSet(BaseViewSet):
     @action(detail=True, methods=["get"], url_path="assignments")
     def assignments(self, request, lic_id=None):
         """List all assignments for a license. Supports filtering."""
-        
-
         instance = self.get_object()
         queryset = instance.assignments.select_related(
             "employee", "employee__user", "asset"
@@ -270,11 +220,4 @@ class SoftwareLicenseViewSet(BaseViewSet):
         if filterset.is_valid():
             queryset = filterset.qs
 
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = LicenseAssignmentSerializer(page, many=True)
-            return success_response(
-                data=self.get_paginated_response(serializer.data).data
-            )
-        serializer = LicenseAssignmentSerializer(queryset, many=True)
-        return success_response(data=serializer.data)
+        return self.paginated_response(queryset, LicenseAssignmentSerializer)

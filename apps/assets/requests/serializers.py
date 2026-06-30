@@ -4,15 +4,16 @@ apps/assets/requests/serializers.py — Serializers for AssetRequest.
 
 from rest_framework import serializers
 
+from apps.base.fields import EmployeeNameField
 from apps.base.serializers import BaseSerializer
-from apps.base.constants import UserRole
 from apps.assets.requests.models import AssetRequest
+from apps.base.utils import validate_tenant_isolation
 
 
 class AssetRequestSerializer(BaseSerializer):
     """Full serializer for AssetRequest — all fields."""
 
-    requested_by_name = serializers.SerializerMethodField()
+    requested_by_name = EmployeeNameField(source="requested_by")
     requested_by_emp_id = serializers.CharField(
         source="requested_by.emp_id", read_only=True
     )
@@ -70,17 +71,12 @@ class AssetRequestSerializer(BaseSerializer):
         """Employees cannot modify review_notes via PATCH."""
         request = self.context.get("request")
         user = request.user if request else None
-        if user and getattr(user, "role", None) == UserRole.EMPLOYEE.value:
+        if user and getattr(user, "is_employee", False):
             if "review_notes" in attrs and attrs["review_notes"]:
                 raise serializers.ValidationError(
                     {"review_notes": "Employees cannot modify review notes."}
                 )
         return attrs
-
-    def get_requested_by_name(self, obj):
-        if obj.requested_by and obj.requested_by.user:
-            return obj.requested_by.user.get_full_name()
-        return None
 
     def get_reviewed_by_name(self, obj):
         if obj.reviewed_by:
@@ -91,7 +87,7 @@ class AssetRequestSerializer(BaseSerializer):
 class AssetRequestListSerializer(BaseSerializer):
     """Lightweight serializer for list views."""
 
-    requested_by_name = serializers.SerializerMethodField()
+    requested_by_name = EmployeeNameField(source="requested_by")
     requested_by_emp_id = serializers.CharField(
         source="requested_by.emp_id", read_only=True
     )
@@ -116,11 +112,6 @@ class AssetRequestListSerializer(BaseSerializer):
             "organization",
             "created_at",
         ]
-
-    def get_requested_by_name(self, obj):
-        if obj.requested_by and obj.requested_by.user:
-            return obj.requested_by.user.get_full_name()
-        return None
 
 
 class AssetRequestCreateSerializer(BaseSerializer):
@@ -166,12 +157,10 @@ class AssetRequestCreateSerializer(BaseSerializer):
         category = attrs.get("asset_category")
 
         # Tenant isolation — non-super-admins can only request within their org
-        if user and getattr(user, "role", None) != UserRole.SUPER_ADMIN.value:
-            user_org = getattr(user, "organization", None)
-            if user_org and category and category.organization_id != user_org.id:
-                raise serializers.ValidationError(
-                    {"asset_category": "This category does not belong to your organization."}
-                )
+        if user:
+            
+
+            validate_tenant_isolation(user, "asset_category", category, "category")
         return attrs
 
 
