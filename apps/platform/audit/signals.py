@@ -106,6 +106,11 @@ def audit_pre_save(sender, instance, **kwargs):
     """
     if getattr(sender._meta, "abstract", False) or sender.__name__ == "AuditLog":
         return
+    app_label = sender._meta.app_label
+    if app_label in ("contenttypes", "sessions", "auth", "admin") or app_label.startswith("django"):
+        return
+    if not hasattr(instance, "organization"):
+        return
     if instance.pk:
         manager = getattr(sender, "all_objects", None)
         if manager is None:
@@ -149,6 +154,10 @@ def audit_post_save(sender, instance, created, **kwargs):
     new_data = _serialize_instance(instance)
     old_data = None if created else _get_old_data(instance)
 
+    # Skip logging if nothing actually changed (e.g. auto-saves, background tasks)
+    if not created and old_data == new_data:
+        return
+
     kwargs_create = _build_audit_kwargs(
         instance, action,
         old_data=old_data, new_data=new_data,
@@ -156,6 +165,12 @@ def audit_post_save(sender, instance, created, **kwargs):
 
     try:
         AuditLog.objects.create(**kwargs_create)
+        audit_logger.debug(
+            "Audit log created: %s %s (pk=%s)",
+            action,
+            instance.__class__.__name__,
+            instance.pk,
+        )
     except Exception:
         audit_logger.exception(
             "Audit log failed for %s on %s", action, sender.__name__
@@ -195,6 +210,11 @@ def audit_pre_delete(sender, instance, **kwargs):
 
     try:
         AuditLog.objects.create(**kwargs_create)
+        audit_logger.debug(
+            "Audit log created: delete %s (pk=%s)",
+            instance.__class__.__name__,
+            instance.pk,
+        )
     except Exception:
         audit_logger.exception(
             "Audit log failed for delete on %s", sender.__name__
