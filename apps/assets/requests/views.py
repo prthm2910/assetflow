@@ -2,6 +2,8 @@
 apps/assets/requests/views.py — ViewSets for AssetRequest.
 """
 
+import logging
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -23,6 +25,8 @@ from apps.assets.requests.serializers import (
     ApproveRejectSerializer,
 )
 from apps.assets.requests.services import AssetRequestService
+
+logger = logging.getLogger(__name__)
 
 
 class AssetRequestViewSet(BaseViewSet):
@@ -133,12 +137,18 @@ class AssetRequestViewSet(BaseViewSet):
             request.user, serializer.validated_data
         )
         if error:
+            logger.warning("Asset request submit failed by %s: %s", request.user.email, error)
             return error_response(
                 message=error,
                 code="SUBMIT_FAILED",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
+        logger.info(
+            "Asset request submitted: %s by %s",
+            request_obj.req_id,
+            request.user.email,
+        )
         return success_response(
             data=AssetRequestSerializer(
                 request_obj, context=self.get_serializer_context()
@@ -195,6 +205,12 @@ class AssetRequestViewSet(BaseViewSet):
             ]
         )
 
+        logger.info(
+            "Asset request %s %s by %s",
+            req_id,
+            action_verb,
+            request.user.email,
+        )
         return success_response(
             data=AssetRequestSerializer(instance).data,
             message=success_message,
@@ -228,4 +244,5 @@ class AssetRequestViewSet(BaseViewSet):
             return err
 
         instance.delete()  # soft-delete
+        logger.info("Asset request %s cancelled by %s", req_id, request.user.email)
         return Response(status=status.HTTP_204_NO_CONTENT)
