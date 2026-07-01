@@ -30,6 +30,7 @@ LOCAL_APPS = [
     "apps.operations.licenses",
     "apps.platform.notifications",
     "apps.platform.audit",
+    "apps.platform.search",
 ]
 
 # ==============================================================================
