@@ -2,6 +2,8 @@
 apps/core/organizations/views.py — ViewSets for Organization and OrganizationProfile.
 """
 
+import logging
+
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.decorators import action
 from apps.base.constants import UserRole
@@ -14,6 +16,8 @@ from apps.core.organizations.serializers import (
     OrganizationProfileSerializer,
     OrganizationSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @extend_schema_view(
@@ -109,6 +113,7 @@ class OrganizationViewSet(BaseViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save(updated_by=request.user)
+        logger.info("Organization config updated for org %s by %s", org_id, request.user.email)
         return success_response(data=serializer.data)
 
 
