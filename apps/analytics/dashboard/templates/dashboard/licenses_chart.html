@@ -22,12 +22,14 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{{ type_labels|json_script:"type-labels" }}
+{{ type_data|json_script:"type-data" }}
 <script>
     new Chart(document.getElementById('typeChart'), {
         type: 'bar',
         data: {
-            labels: {{ type_labels|safe }},
-            datasets: [{ data: {{ type_data|safe }}, backgroundColor: ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'] }]
+            labels: JSON.parse(document.getElementById('type-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('type-data').textContent), backgroundColor: ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'] }]
         },
         options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
     });

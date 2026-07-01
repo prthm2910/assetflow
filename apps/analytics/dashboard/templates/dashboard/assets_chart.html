@@ -23,9 +23,11 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{{ status_breakdown|json_script:"status-data" }}
+{{ category_breakdown|json_script:"category-data" }}
 <script>
-    const statusData = {{ status_breakdown|safe }};
-    const catData = {{ category_breakdown|safe }};
+    const statusData = JSON.parse(document.getElementById('status-data').textContent);
+    const catData = JSON.parse(document.getElementById('category-data').textContent);
 
     new Chart(document.getElementById('statusChart'), {
         type: 'pie',

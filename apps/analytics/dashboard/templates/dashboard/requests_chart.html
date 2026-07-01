@@ -21,12 +21,14 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{{ status_labels|json_script:"status-labels" }}
+{{ status_data|json_script:"status-data" }}
 <script>
     new Chart(document.getElementById('statusChart'), {
         type: 'doughnut',
         data: {
-            labels: {{ status_labels|safe }},
-            datasets: [{ data: {{ status_data|safe }}, backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6'] }]
+            labels: JSON.parse(document.getElementById('status-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('status-data').textContent), backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6'] }]
         }
     });
 </script>

@@ -16,6 +16,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from apps.base.response import error_response, success_response
+from apps.core.organizations.models import Organization
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,10 @@ class OrganizationScopedMixin:
         if is_super_admin:
             org_id = request.query_params.get("organization_id")
             if org_id:
-                return org_id
+                try:
+                    return Organization.objects.get(pk=org_id)
+                except (Organization.DoesNotExist, ValueError):
+                    return None
         return user.organization
 
     def get_organization_or_error(self, request):

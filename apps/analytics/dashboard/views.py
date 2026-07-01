@@ -8,8 +8,6 @@ Inherits from reusable base classes in apps.base.viewsets:
 Dashboard-specific: BaseDashboardView adds visualization_url logic.
 """
 
-import json
-
 from django.urls import reverse
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
@@ -67,9 +65,11 @@ class BaseDashboardView(BaseOrgAPIView):
 
         data = self.get_data(org)
         if self.viz_url_name:
-            data["visualization_url"] = request.build_absolute_uri(
-                reverse(self.viz_url_name)
-            )
+            url = reverse(self.viz_url_name)
+            org_id = request.query_params.get("organization_id")
+            if org_id:
+                url = f"{url}?organization_id={org_id}"
+            data["visualization_url"] = request.build_absolute_uri(url)
         return success_response(data=data, message=self.get_message())
 
 
@@ -240,21 +240,17 @@ class SummaryVisualizationView(BaseOrgTemplateView):
         summary = DashboardSummaryService.get_summary(org)
         ctx = {"summary": summary}
 
-        ctx["asset_status_labels"] = json.dumps(
-            [s["status"] for s in summary.get("assets", {}).get("status_breakdown", [])]
-        )
-        ctx["asset_status_data"] = json.dumps(
-            [s["count"] for s in summary.get("assets", {}).get("status_breakdown", [])]
-        )
+        ctx["asset_status_labels"] = [s["status"] for s in summary.get("assets", {}).get("status_breakdown", [])]
+        ctx["asset_status_data"] = [s["count"] for s in summary.get("assets", {}).get("status_breakdown", [])]
         inc = summary.get("incidents", {}).get("status_breakdown", [])
-        ctx["incident_status_labels"] = json.dumps([s["status"] for s in inc])
-        ctx["incident_status_data"] = json.dumps([s["count"] for s in inc])
+        ctx["incident_status_labels"] = [s["status"] for s in inc]
+        ctx["incident_status_data"] = [s["count"] for s in inc]
         req = summary.get("requests", {}).get("status_breakdown", [])
-        ctx["request_status_labels"] = json.dumps([s["status"] for s in req])
-        ctx["request_status_data"] = json.dumps([s["count"] for s in req])
+        ctx["request_status_labels"] = [s["status"] for s in req]
+        ctx["request_status_data"] = [s["count"] for s in req]
         lic = summary.get("licenses", {}).get("type_breakdown", [])
-        ctx["license_type_labels"] = json.dumps([s["license_type"] for s in lic])
-        ctx["license_type_data"] = json.dumps([s["count"] for s in lic])
+        ctx["license_type_labels"] = [s["license_type"] for s in lic]
+        ctx["license_type_data"] = [s["count"] for s in lic]
         return ctx
 
 
@@ -268,8 +264,8 @@ class AssetVisualizationView(BaseOrgTemplateView):
                 "total_assets": AssetRepository.get_total_count(org),
                 "utilization_rate": AssetRepository.get_utilization_rate(org),
             },
-            "status_breakdown": json.dumps(AssetRepository.get_status_breakdown(org)),
-            "category_breakdown": json.dumps(AssetRepository.get_category_breakdown(org)),
+            "status_breakdown": AssetRepository.get_status_breakdown(org),
+            "category_breakdown": AssetRepository.get_category_breakdown(org),
         }
 
 
@@ -284,10 +280,10 @@ class IncidentVisualizationView(BaseOrgTemplateView):
             "data": {"total_incidents": IncidentRepository.get_total_count(org)},
             "open_count": IncidentRepository.get_open_count(org),
             "resolved_count": IncidentRepository.get_resolved_count(org),
-            "status_labels": json.dumps([s["status"] for s in breakdown]),
-            "status_data": json.dumps([s["count"] for s in breakdown]),
-            "category_labels": json.dumps([s["category"] for s in cat]),
-            "category_data": json.dumps([s["count"] for s in cat]),
+            "status_labels": [s["status"] for s in breakdown],
+            "status_data": [s["count"] for s in breakdown],
+            "category_labels": [s["category"] for s in cat],
+            "category_data": [s["count"] for s in cat],
         }
 
 
@@ -302,8 +298,8 @@ class RequestVisualizationView(BaseOrgTemplateView):
             "pending_count": RequestRepository.get_pending_count(org),
             "approved_count": RequestRepository.get_approved_count(org),
             "rejected_count": RequestRepository.get_rejected_count(org),
-            "status_labels": json.dumps([s["status"] for s in breakdown]),
-            "status_data": json.dumps([s["count"] for s in breakdown]),
+            "status_labels": [s["status"] for s in breakdown],
+            "status_data": [s["count"] for s in breakdown],
         }
 
 
@@ -321,8 +317,8 @@ class LicenseVisualizationView(BaseOrgTemplateView):
                 "utilization_rate": LicenseRepository.get_license_utilization_rate(org),
                 "expiring_soon": LicenseRepository.get_expiring_soon(org),
             },
-            "type_labels": json.dumps([s["license_type"] for s in breakdown]),
-            "type_data": json.dumps([s["count"] for s in breakdown]),
+            "type_labels": [s["license_type"] for s in breakdown],
+            "type_data": [s["count"] for s in breakdown],
         }
 
 

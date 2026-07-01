@@ -34,33 +34,41 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{{ asset_status_labels|json_script:"asset-labels" }}
+{{ asset_status_data|json_script:"asset-data" }}
+{{ incident_status_labels|json_script:"incident-labels" }}
+{{ incident_status_data|json_script:"incident-data" }}
+{{ request_status_labels|json_script:"request-labels" }}
+{{ request_status_data|json_script:"request-data" }}
+{{ license_type_labels|json_script:"license-labels" }}
+{{ license_type_data|json_script:"license-data" }}
 <script>
     new Chart(document.getElementById('assetStatusChart'), {
         type: 'pie',
         data: {
-            labels: {{ asset_status_labels|safe }},
-            datasets: [{ data: {{ asset_status_data|safe }}, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] }]
+            labels: JSON.parse(document.getElementById('asset-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('asset-data').textContent), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] }]
         }
     });
     new Chart(document.getElementById('incidentStatusChart'), {
         type: 'doughnut',
         data: {
-            labels: {{ incident_status_labels|safe }},
-            datasets: [{ data: {{ incident_status_data|safe }}, backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'] }]
+            labels: JSON.parse(document.getElementById('incident-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('incident-data').textContent), backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'] }]
         }
     });
     new Chart(document.getElementById('requestStatusChart'), {
         type: 'doughnut',
         data: {
-            labels: {{ request_status_labels|safe }},
-            datasets: [{ data: {{ request_status_data|safe }}, backgroundColor: ['#f59e0b', '#10b981', '#ef4444'] }]
+            labels: JSON.parse(document.getElementById('request-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('request-data').textContent), backgroundColor: ['#f59e0b', '#10b981', '#ef4444'] }]
         }
     });
     new Chart(document.getElementById('licenseTypeChart'), {
         type: 'pie',
         data: {
-            labels: {{ license_type_labels|safe }},
-            datasets: [{ data: {{ license_type_data|safe }}, backgroundColor: ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'] }]
+            labels: JSON.parse(document.getElementById('license-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('license-data').textContent), backgroundColor: ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'] }]
         }
     });
 </script>

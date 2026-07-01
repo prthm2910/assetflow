@@ -259,10 +259,12 @@ class LicenseRepository(BaseRepository):
 
     @classmethod
     def get_expiring_soon(cls, organization, days=30):
-        """Licenses expiring within *days* from now."""
-        cutoff = timezone.now() + timedelta(days=days)
+        """Licenses expiring within *days* from now (excluding already expired)."""
+        now = timezone.now()
+        cutoff = now + timedelta(days=days)
         return cls.org_queryset(organization).filter(
-            expiry_date__lte=cutoff,
+            expiry_date__gte=now.date(),
+            expiry_date__lte=cutoff.date(),
             expiry_date__isnull=False,
         ).count()
 
