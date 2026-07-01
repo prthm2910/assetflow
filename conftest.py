@@ -6,11 +6,23 @@ that all child apps import via pytest's fixture system.
 """
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 
 User = get_user_model()
+
+
+def pytest_configure(config):
+    """Override live Redis/settings for test environment."""
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    settings.CELERY_TASK_EAGER_PROPAGATES = True
 
 
 # ---------------------------------------------------------------------------
