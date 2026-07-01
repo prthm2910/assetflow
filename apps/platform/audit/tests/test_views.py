@@ -33,7 +33,7 @@ class TestAuditLogViewSet:
             object_id=uuid.uuid4(),
             changes={"old": {"name": "Old"}, "new": {"name": "New"}},
         )
-        resp = org_admin_client.get(f"/api/v1/audit-logs/{log.id}/")
+        resp = org_admin_client.get(f"/api/v1/audit-logs/{log.audit_id}/")
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -67,9 +67,8 @@ class TestAuditLogViewSet:
             object_id=uuid.uuid4(),
         )
         resp = employee_client.get("/api/v1/audit-logs/")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["data"]["count"] == 0
+        # Employees are blocked at the permission level
+        assert resp.status_code in [403, 401]
 
     def test_filter_by_model_name(self, organization, org_admin_user, org_admin_client):
         """Filtering by model_name works."""

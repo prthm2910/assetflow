@@ -61,6 +61,7 @@ class BaseSerializer(serializers.ModelSerializer):
     def get_field_names(self, declared_fields, info):
         """Inject base fields for models that inherit BaseModel."""
         field_names = super().get_field_names(declared_fields, info)
-        if not issubclass(info.model, BaseModel):
+        model = getattr(self.Meta, "model", None)
+        if model is None or not issubclass(model, BaseModel):
             return field_names
         return list(field_names) + [f for f in self.BASE_READ_ONLY_FIELDS if f not in field_names]

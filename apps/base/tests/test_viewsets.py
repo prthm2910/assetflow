@@ -75,10 +75,12 @@ class TestBaseViewSet:
         viewset.request = request
 
         class MockModel:
+            pk = 1
             updated_by = None
 
         class MockSerializer:
             Meta = type("Meta", (), {"model": MockModel})()
+            instance = MockModel()
 
             def save(self, **kwargs):
                 assert kwargs.get("updated_by") == user

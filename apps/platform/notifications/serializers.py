@@ -37,6 +37,8 @@ class NotificationSerializer(BaseSerializer):
 class NotificationListSerializer(BaseSerializer):
     """Lightweight serializer for list views."""
 
+    recipient_email = serializers.EmailField(source="recipient.email", read_only=True)
+
     class Meta:
         model = Notification
         fields = [

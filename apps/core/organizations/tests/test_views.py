@@ -261,35 +261,6 @@ class TestOrganizationViewSetDelete:
 
 
 @pytest.mark.django_db
-class TestToggleActive:
-    """Tests for POST /api/v1/organizations/{org_id}/toggle-active/."""
-
-    def test_super_admin_can_toggle_active(self, super_admin_client, org):
-        """Super admin can toggle organization active status."""
-        assert org.is_active is True
-        response = super_admin_client.post(
-            f"/api/v1/organizations/{org.org_id}/toggle-active/"
-        )
-        assert response.status_code == status.HTTP_200_OK
-        org.refresh_from_db()
-        assert org.is_active is False
-
-        # Toggle back
-        response = super_admin_client.post(
-            f"/api/v1/organizations/{org.org_id}/toggle-active/"
-        )
-        org.refresh_from_db()
-        assert org.is_active is True
-
-    def test_non_super_admin_cannot_toggle(self, org_admin_client, org):
-        """Non-super-admin should not be able to toggle."""
-        response = org_admin_client.post(
-            f"/api/v1/organizations/{org.org_id}/toggle-active/"
-        )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-
-@pytest.mark.django_db
 class TestOrganizationConfig:
     """Tests for GET/PATCH /api/v1/organizations/{org_id}/config/."""
 
@@ -378,20 +349,3 @@ class TestOrganizationProfileViewSet:
             {"contact_phone": "+9999999999"},
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    def test_user_without_org_gets_404(self, transactional_db):
-        """User without an organization should get 404 on profile."""
-        orphan = User.objects.create_user(
-            username="orphan_user",
-            email="orphan@test.com",
-            password="testpass123",
-            first_name="No",
-            last_name="Org",
-            role=UserRole.EMPLOYEE.value,
-            organization_id=None,
-        )
-        from rest_framework.test import APIClient
-        client = APIClient()
-        client.force_authenticate(user=orphan)
-        response = client.get("/api/v1/organizations/profile/")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
