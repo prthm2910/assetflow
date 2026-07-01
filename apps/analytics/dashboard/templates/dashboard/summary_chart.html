@@ -1,0 +1,67 @@
+{% extends "dashboard/base_chart.html" %}
+{% load static %}
+
+{% block title %}Summary Dashboard{% endblock %}
+{% block heading %}Organization Summary{% endblock %}
+{% block stat_cards %}
+<div class="cards">
+    <div class="card"><div class="label">Total Assets</div><div class="value">{{ summary.assets.total }}</div></div>
+    <div class="card"><div class="label">Utilization</div><div class="value">{{ summary.assets.utilization_rate }}%</div></div>
+    <div class="card"><div class="label">Open Incidents</div><div class="value">{{ summary.incidents.open }}</div></div>
+    <div class="card"><div class="label">Pending Requests</div><div class="value">{{ summary.requests.pending }}</div></div>
+    <div class="card"><div class="label">License Utilization</div><div class="value">{{ summary.licenses.utilization_rate }}%</div></div>
+    <div class="card"><div class="label">Active Allocations</div><div class="value">{{ summary.allocations.active }}</div></div>
+</div>
+{% endblock %}
+
+{% block charts %}
+<div class="chart-box">
+    <h3>Asset Status</h3>
+    <canvas id="assetStatusChart"></canvas>
+</div>
+<div class="chart-box">
+    <h3>Incident Status</h3>
+    <canvas id="incidentStatusChart"></canvas>
+</div>
+<div class="chart-box">
+    <h3>Request Status</h3>
+    <canvas id="requestStatusChart"></canvas>
+</div>
+<div class="chart-box">
+    <h3>License Types</h3>
+    <canvas id="licenseTypeChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    new Chart(document.getElementById('assetStatusChart'), {
+        type: 'pie',
+        data: {
+            labels: {{ asset_status_labels|safe }},
+            datasets: [{ data: {{ asset_status_data|safe }}, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] }]
+        }
+    });
+    new Chart(document.getElementById('incidentStatusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ incident_status_labels|safe }},
+            datasets: [{ data: {{ incident_status_data|safe }}, backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'] }]
+        }
+    });
+    new Chart(document.getElementById('requestStatusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ request_status_labels|safe }},
+            datasets: [{ data: {{ request_status_data|safe }}, backgroundColor: ['#f59e0b', '#10b981', '#ef4444'] }]
+        }
+    });
+    new Chart(document.getElementById('licenseTypeChart'), {
+        type: 'pie',
+        data: {
+            labels: {{ license_type_labels|safe }},
+            datasets: [{ data: {{ license_type_data|safe }}, backgroundColor: ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'] }]
+        }
+    });
+</script>
+{% endblock %}

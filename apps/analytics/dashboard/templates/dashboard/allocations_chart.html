@@ -1,0 +1,32 @@
+{% extends "dashboard/base_chart.html" %}
+{% load static %}
+
+{% block title %}Allocation Dashboard{% endblock %}
+{% block heading %}Allocation Dashboard{% endblock %}
+
+{% block stat_cards %}
+<div class="cards">
+    <div class="card"><div class="label">Total Allocations</div><div class="value">{{ data.total_allocations }}</div></div>
+    <div class="card"><div class="label">Active</div><div class="value">{{ data.active }}</div></div>
+    <div class="card"><div class="label">Returned</div><div class="value">{{ data.returned }}</div></div>
+</div>
+{% endblock %}
+
+{% block charts %}
+<div class="chart-box">
+    <h3>Allocation Status</h3>
+    <canvas id="statusChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Returned'],
+            datasets: [{ data: [{{ data.active }}, {{ data.returned }}], backgroundColor: ['#3b82f6', '#10b981'] }]
+        }
+    });
+</script>
+{% endblock %}
