@@ -1,12 +1,12 @@
 """
-apps/base/tests/test_viewsets.py — Tests for BaseViewSet and BulkOperationsMixin.
+apps/base/tests/test_viewsets.py — Tests for BaseViewSet.
 """
 
 import pytest
 from rest_framework.test import APIRequestFactory
 from unittest.mock import Mock
 
-from apps.base.viewsets import BaseViewSet, BulkOperationsMixin
+from apps.base.viewsets import BaseViewSet
 from apps.base.constants import UserRole
 
 
@@ -84,20 +84,3 @@ class TestBaseViewSet:
                 assert kwargs.get("updated_by") == user
 
         viewset.perform_update(MockSerializer())
-
-
-@pytest.mark.django_db
-class TestBulkOperationsMixin:
-    """Tests for BulkOperationsMixin."""
-
-    def test_bulk_create_is_action(self):
-        """bulk_create should be a registered action."""
-        assert hasattr(BulkOperationsMixin, "bulk_create")
-
-    def test_bulk_update_is_action(self):
-        """bulk_update should be a registered action."""
-        assert hasattr(BulkOperationsMixin, "bulk_update")
-
-    def test_bulk_delete_is_action(self):
-        """bulk_delete should be a registered action."""
-        assert hasattr(BulkOperationsMixin, "bulk_delete")

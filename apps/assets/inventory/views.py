@@ -2,6 +2,8 @@
 apps/assets/inventory/views.py — ViewSets for Asset.
 """
 
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,6 +19,8 @@ from apps.assets.inventory.serializers import (
     AssetStatusChangeSerializer,
 )
 from apps.assets.inventory.services import AssetService
+
+logger = logging.getLogger(__name__)
 
 
 class AssetViewSet(BaseViewSet):
@@ -62,7 +66,8 @@ class AssetViewSet(BaseViewSet):
         AssetService.inject_organization(request.user, data)
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        asset = serializer.save()
+        logger.info("Asset created: %s (%s) by %s", asset.name, asset.asset_id, request.user.email)
         return success_response(
             data=serializer.data,
             message="Asset created successfully.",
@@ -83,6 +88,12 @@ class AssetViewSet(BaseViewSet):
         serializer.is_valid(raise_exception=True)
         asset = AssetService.change_status(
             instance, serializer.validated_data["status"], request.user
+        )
+        logger.info(
+            "Asset %s status changed to %s by %s",
+            asset.asset_id,
+            asset.status,
+            request.user.email,
         )
         return success_response(
             data=AssetSerializer(asset, context=self.get_serializer_context()).data,

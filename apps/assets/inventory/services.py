@@ -4,10 +4,14 @@ Keeps the AssetViewSet thin: HTTP concerns stay in the view,
 domain logic lives here (testable without HTTP clients).
 """
 
+import logging
+
 from django.utils import timezone
 
 from apps.base.constants import UserRole
 from apps.assets.inventory.models import Asset
+
+logger = logging.getLogger(__name__)
 
 
 class AssetService:
@@ -92,7 +96,15 @@ class AssetService:
         Returns:
             The updated Asset instance.
         """
+        old_status = asset.status
         asset.status = new_status
         asset.updated_by = user
         asset.save(update_fields=["status", "updated_at", "updated_by"])
+        logger.info(
+            "Asset %s status: %s → %s by %s",
+            asset.asset_id,
+            old_status,
+            new_status,
+            user.email,
+        )
         return asset

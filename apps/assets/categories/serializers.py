@@ -29,7 +29,6 @@ class AssetCategorySerializer(BaseSerializer):
     class Meta:
         model = AssetCategory
         fields = [
-            "id",
             "cat_id",
             "name",
             "description",
@@ -37,12 +36,6 @@ class AssetCategorySerializer(BaseSerializer):
             "parent",
             "parent_name",
             "sub_category_count",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
         read_only_fields = [
             "id",
@@ -113,14 +106,12 @@ class AssetCategoryListSerializer(BaseSerializer):
     class Meta:
         model = AssetCategory
         fields = [
-            "id",
             "cat_id",
             "name",
             "parent",
             "parent_name",
             "sub_category_count",
             "organization",
-            "is_active",
         ]
 
     def get_sub_category_count(self, obj):
@@ -140,13 +131,11 @@ class AssetCategoryTreeSerializer(BaseSerializer):
     class Meta:
         model = AssetCategory
         fields = [
-            "id",
             "cat_id",
             "name",
             "description",
             "parent",
             "sub_categories",
-            "is_active",
         ]
 
     def get_sub_categories(self, obj):

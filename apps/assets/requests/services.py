@@ -5,9 +5,13 @@ Keeps the AssetRequestViewSet thin: HTTP concerns stay in the view,
 domain logic lives here (testable without HTTP clients).
 """
 
+import logging
+
 from apps.assets.categories.models import AssetCategory
 from apps.assets.requests.constants import RequestPriority, RequestStatus
 from apps.assets.requests.models import AssetRequest
+
+logger = logging.getLogger(__name__)
 
 
 class AssetRequestService:
@@ -56,6 +60,7 @@ class AssetRequestService:
         # Resolve employee profile
         employee = user.employee
         if not employee:
+            logger.error("No employee profile for user %s during request submit", user.email)
             return None, "No employee profile found for the current user."
 
         # Create the request

@@ -15,14 +15,6 @@ class SoftwareLicenseSerializer(BaseSerializer):
     class Meta:
         model = SoftwareLicense
         fields = [
-            # BaseModel fields
-            "id",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             # License fields
             "lic_id",
             "organization",
@@ -111,14 +103,6 @@ class LicenseAssignmentSerializer(BaseSerializer):
     class Meta:
         model = LicenseAssignment
         fields = [
-            # BaseModel fields
-            "id",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             # Assignment fields
             "license",
             "license_name",

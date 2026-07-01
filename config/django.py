@@ -29,6 +29,7 @@ LOCAL_APPS = [
     "apps.operations.incidents",
     "apps.operations.licenses",
     "apps.platform.notifications",
+    "apps.platform.audit",
 ]
 
 # ==============================================================================

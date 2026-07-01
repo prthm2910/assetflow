@@ -2,6 +2,8 @@
 apps/assets/allocations/views.py — ViewSets for Allocation.
 """
 
+import logging
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
@@ -22,6 +24,8 @@ from apps.assets.allocations.serializers import (
     AllocationCreateSerializer,
     TransferSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AllocationViewSet(BaseViewSet):
@@ -101,6 +105,12 @@ class AllocationViewSet(BaseViewSet):
             asset.status = AssetStatus.ALLOCATED.value
             asset.save(update_fields=update_fields)
 
+        logger.info(
+            "Asset %s allocated to %s by %s",
+            asset.asset_id,
+            allocation.employee.user.get_full_name(),
+            request.user.email,
+        )
         return success_response(
             data=AllocationSerializer(allocation).data,
             message="Asset allocated successfully.",
@@ -188,6 +198,13 @@ class AllocationViewSet(BaseViewSet):
                 notes=transfer_notes or f"Transferred from {current_emp_name}.",
             )
 
+        logger.info(
+            "Asset %s transferred from %s to %s by %s",
+            current_allocation.asset.asset_id,
+            current_emp_name,
+            new_employee.user.get_full_name(),
+            request.user.email,
+        )
         return success_response(
             data=AllocationSerializer(new_allocation).data,
             message=f"Asset transferred to {new_employee.user.get_full_name()}.",
@@ -233,6 +250,11 @@ class AllocationViewSet(BaseViewSet):
             asset.status = AssetStatus.AVAILABLE.value
             asset.save(update_fields=update_fields)
 
+        logger.info(
+            "Asset %s returned by %s",
+            asset.asset_id,
+            request.user.email,
+        )
         return success_response(
             data=AllocationSerializer(instance).data,
             message="Asset returned successfully.",

@@ -24,14 +24,6 @@ class AllocationSerializer(BaseSerializer):
     class Meta:
         model = Allocation
         fields = [
-            # BaseModel fields
-            "id",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             # Allocation fields
             "alloc_id",
             "organization",
@@ -113,17 +105,10 @@ class AllocationCreateSerializer(BaseSerializer):
     class Meta:
         model = Allocation
         fields = [
-            "id",
             "alloc_id",
             "asset",
             "employee",
             "notes",
-            "created_by",
-            "updated_by",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = [
             "id",

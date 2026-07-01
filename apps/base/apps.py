@@ -12,7 +12,3 @@ class BaseConfig(AppConfig):
     name = "apps.base"
     label = "base"
     verbose_name = "Base Utilities"
-
-    def ready(self):
-        """Import signals to register them when the app is ready."""
-        from apps.base import signals  # noqa: F401

@@ -1,9 +1,9 @@
 """apps/platform/notifications/views.py — ViewSets for Notification."""
 
+import logging
+
 from django.utils import timezone
-from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from apps.base.response import success_response
@@ -13,6 +13,8 @@ from apps.platform.notifications.serializers import (
     NotificationSerializer,
     NotificationListSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationViewSet(BaseViewSet):
@@ -52,6 +54,7 @@ class NotificationViewSet(BaseViewSet):
         instance = self.get_object()
         instance.is_read = True
         instance.save(update_fields=["is_read", "updated_at"])
+        logger.debug("Notification %s marked as read", notif_id)
         return success_response(
             data=NotificationSerializer(instance).data,
             message="Notification marked as read.",
@@ -64,6 +67,7 @@ class NotificationViewSet(BaseViewSet):
             is_read=True,
             updated_at=timezone.now(),
         )
+        logger.info("%d notification(s) marked as read for %s", count, request.user.email)
         return success_response(
             data={"count": count},
             message=f"{count} notification(s) marked as read.",

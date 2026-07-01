@@ -21,14 +21,6 @@ class AssetSerializer(BaseSerializer):
     class Meta:
         model = Asset
         fields = [
-            # BaseModel fields (read-only from BaseSerializer)
-            "id",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             # Asset fields
             "asset_id",
             "organization",
@@ -74,10 +66,6 @@ class AssetListSerializer(BaseSerializer):
     class Meta:
         model = Asset
         fields = [
-            # BaseModel fields (read-only from BaseSerializer)
-            "id",
-            "is_active",
-            "created_at",
             # Asset fields
             "asset_id",
             "name",
@@ -89,7 +77,7 @@ class AssetListSerializer(BaseSerializer):
             "assigned_to_name",
             "location",
         ]
-        # is_deleted inherited read-only from BaseSerializer
+        # is_deleted, is_active inherited read-only from BaseSerializer
 
 
 class AssetStatusChangeSerializer(serializers.Serializer):
