@@ -67,7 +67,7 @@ def _build_audit_kwargs(instance, action, old_data=None, new_data=None):
         "model_name": instance.__class__.__name__,
         "object_id": instance.pk,
     }
-    if hasattr(instance, "organization"):
+    if hasattr(instance, "organization") and instance.organization is not None:
         kwargs["organization"] = instance.organization
 
     user = get_current_user()
@@ -146,8 +146,8 @@ def audit_post_save(sender, instance, created, **kwargs):
     if app_label.startswith("django"):
         return
 
-    # Skip if model has no organization (can't scope the audit entry)
-    if not hasattr(instance, "organization"):
+    # Skip if model has no organization or organization is null (can't scope the audit entry)
+    if not hasattr(instance, "organization") or instance.organization is None:
         return
 
     action = AuditAction.CREATE.value if created else AuditAction.UPDATE.value
@@ -198,7 +198,7 @@ def audit_pre_delete(sender, instance, **kwargs):
         return
 
     # Skip if model has no organization
-    if not hasattr(instance, "organization"):
+    if not hasattr(instance, "organization") or instance.organization is None:
         return
 
     old_data = _serialize_instance(instance)
