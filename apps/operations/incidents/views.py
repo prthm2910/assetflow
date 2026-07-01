@@ -1,5 +1,7 @@
 """apps/operations/incidents/views.py — ViewSets for Incident."""
 
+import logging
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -23,6 +25,8 @@ from apps.operations.incidents.serializers import (
     ResolveSerializer,
     CloseSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class IncidentViewSet(BaseViewSet):
@@ -146,12 +150,17 @@ class IncidentViewSet(BaseViewSet):
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(
+        instance = serializer.save(
             organization=report_org,
             reported_by=employee,
             status=IncidentStatus.REPORTED.value,
         )
 
+        logger.info(
+            "Incident reported: %s by %s",
+            instance.inc_id,
+            request.user.email,
+        )
         return success_response(
             data=IncidentSerializer(serializer.instance).data,
             message="Incident reported successfully.",
@@ -192,6 +201,12 @@ class IncidentViewSet(BaseViewSet):
             ]
         )
 
+        logger.info(
+            "Incident %s assigned to %s by %s",
+            instance.inc_id,
+            serializer.validated_data["assigned_to"].user.get_full_name(),
+            request.user.email,
+        )
         return success_response(
             data=IncidentSerializer(instance).data,
             message="Incident assigned successfully.",
@@ -210,6 +225,7 @@ class IncidentViewSet(BaseViewSet):
         instance.updated_by = request.user
         instance.save(update_fields=["status", "updated_at", "updated_by"])
 
+        logger.info("Incident %s work started by %s", instance.inc_id, request.user.email)
         return success_response(
             data=IncidentSerializer(instance).data,
             message="Incident work started.",
@@ -244,6 +260,7 @@ class IncidentViewSet(BaseViewSet):
             ]
         )
 
+        logger.info("Incident %s resolved by %s", instance.inc_id, request.user.email)
         return success_response(
             data=IncidentSerializer(instance).data,
             message="Incident resolved successfully.",
@@ -279,6 +296,7 @@ class IncidentViewSet(BaseViewSet):
             ]
         )
 
+        logger.info("Incident %s closed by %s", instance.inc_id, request.user.email)
         return success_response(
             data=IncidentSerializer(instance).data,
             message="Incident closed successfully.",
@@ -307,6 +325,7 @@ class IncidentViewSet(BaseViewSet):
         instance.updated_by = request.user
         instance.save(update_fields=["attachments", "updated_at", "updated_by"])
 
+        logger.debug("Attachment added to incident %s by %s", instance.inc_id, request.user.email)
         return success_response(
             data=IncidentSerializer(instance).data,
             message="Attachment added successfully.",
