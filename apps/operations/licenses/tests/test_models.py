@@ -116,7 +116,7 @@ class TestSoftwareLicenseModel:
 @pytest.mark.django_db
 class TestLicenseAssignmentModel:
     def test_is_active_when_not_revoked(self, organization, employee):
-        """is_active is True when revoked_at is None."""
+        """is_assignment_active is True when revoked_at is None."""
         lic = SoftwareLicense.objects.create(
             organization=organization,
             software_name="Slack",
@@ -126,10 +126,10 @@ class TestLicenseAssignmentModel:
         a = LicenseAssignment.objects.create(
             organization=organization, license=lic, employee=employee
         )
-        assert a.is_active is True
+        assert a.is_assignment_active is True
 
     def test_is_inactive_when_revoked(self, organization, employee):
-        """is_active is False when revoked_at is set."""
+        """is_assignment_active is False when revoked_at is set."""
         from django.utils import timezone
 
         lic = SoftwareLicense.objects.create(
@@ -143,7 +143,7 @@ class TestLicenseAssignmentModel:
         )
         a.revoked_at = timezone.now()
         a.save(update_fields=["revoked_at"])
-        assert a.is_active is False
+        assert a.is_assignment_active is False
 
     def test_str_with_employee(self, organization, employee):
         """__str__ shows employee name when assigned to employee."""

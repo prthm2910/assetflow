@@ -1,9 +1,13 @@
 """apps/operations/licenses/models.py — Software license management."""
 
+import logging
+
 from django.db import models
 
 from apps.base.models import BaseModel
 from apps.operations.licenses.constants import LicenseType
+
+logger = logging.getLogger(__name__)
 
 
 class SoftwareLicense(BaseModel):
@@ -181,6 +185,25 @@ class LicenseAssignment(BaseModel):
         return f"{self.license.software_name} → {target} ({self.id})"
 
     @property
-    def is_active(self):
+    def is_assignment_active(self):
         """True when the assignment has not been revoked."""
         return self.revoked_at is None
+
+    def delete(self, using=None, keep_parents=False):
+        """
+        Revoke the assignment instead of soft-deleting.
+
+        This ensures seat availability stays accurate even if someone
+        calls .delete() directly (e.g. in a shell). For API consumers,
+        prefer POST /api/v1/licenses/{lic_id}/revoke/ with assignment_id.
+        """
+        if self.revoked_at is None:
+            from django.utils import timezone
+
+            self.revoked_at = timezone.now()
+            self.save(update_fields=["revoked_at", "updated_at"])
+            logger.warning(
+                "LicenseAssignment %s was deleted via .delete() — auto-revoked instead. "
+                "Use the revoke action on SoftwareLicenseViewSet for the intended workflow.",
+                self.pk,
+            )

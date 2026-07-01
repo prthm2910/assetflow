@@ -174,7 +174,7 @@ class SoftwareLicenseViewSet(BaseViewSet):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        if not assignment.is_active:
+        if not assignment.is_assignment_active:
             return error_response(
                 message="This assignment is already revoked.",
                 code="ALREADY_REVOKED",
