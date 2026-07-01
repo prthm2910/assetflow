@@ -7,6 +7,8 @@ search endpoints for full paginated browsing.
 Endpoint:  GET /api/v1/search/?q=<term>[&type=assets,employees]
 """
 
+from urllib.parse import quote
+
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -42,6 +44,7 @@ SEARCH_CONFIG = {
             "description__icontains",
         ],
         "serializer": AssetSearchSerializer,
+        "select_related": ["category"],
         "view_all_url_template": "/api/v1/assets/?search={query}",
     },
     "employees": {
@@ -54,6 +57,7 @@ SEARCH_CONFIG = {
             "designation__icontains",
         ],
         "serializer": EmployeeSearchSerializer,
+        "select_related": ["user", "department"],
         "view_all_url_template": "/api/v1/employees/?search={query}",
     },
     "requests": {
@@ -64,6 +68,7 @@ SEARCH_CONFIG = {
             "reason__icontains",
         ],
         "serializer": RequestSearchSerializer,
+        "select_related": ["requested_by", "requested_by__user", "asset_category"],
         "view_all_url_template": "/api/v1/requests/?search={query}",
     },
     "incidents": {
@@ -75,6 +80,7 @@ SEARCH_CONFIG = {
             "description__icontains",
         ],
         "serializer": IncidentSearchSerializer,
+        "select_related": ["reported_by", "reported_by__user", "asset"],
         "view_all_url_template": "/api/v1/incidents/?search={query}",
     },
     "licenses": {
@@ -86,6 +92,7 @@ SEARCH_CONFIG = {
             "vendor__icontains",
         ],
         "serializer": LicenseSearchSerializer,
+        "select_related": [],
         "view_all_url_template": "/api/v1/licenses/?search={query}",
     },
 }
@@ -145,6 +152,14 @@ class GlobalSearchView(APIView):
             if type_param
             else None
         )
+        if requested_types:
+            invalid_types = requested_types - set(SEARCH_CONFIG.keys())
+            if invalid_types:
+                return error_response(
+                    message=f"Invalid search type(s): {', '.join(sorted(invalid_types))}. "
+                    f"Valid types: {', '.join(SEARCH_CONFIG.keys())}",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
 
         results = []
         for key, config in SEARCH_CONFIG.items():
@@ -157,11 +172,15 @@ class GlobalSearchView(APIView):
                 q_filter |= Q(**{field: query})
 
             queryset = config["model"].objects.filter(q_filter)
+            if "select_related" in config:
+                queryset = queryset.select_related(*config["select_related"])
             if not is_super_admin and hasattr(config["model"], "organization"):
                 queryset = queryset.filter(organization=user.organization)
 
-            total_count = queryset.count()
-            top_items = queryset[:RESULT_LIMIT]
+            top_items = list(queryset[:RESULT_LIMIT])
+            total_count = len(top_items)
+            if total_count == RESULT_LIMIT:
+                total_count = queryset.count()
 
             results.append(
                 {
@@ -172,7 +191,7 @@ class GlobalSearchView(APIView):
                         top_items, many=True, context={"request": request}
                     ).data,
                     "view_all_url": config["view_all_url_template"].format(
-                        query=query
+                        query=quote(query)
                     ),
                 }
             )
