@@ -4,12 +4,15 @@ Uses Strategy pattern for delivery channels (in-app, email, etc.).
 Add new channels by implementing NotificationChannel — no changes to service.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
 
 from apps.platform.notifications.models import Notification
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationChannel(ABC):
@@ -56,6 +59,7 @@ class InAppChannel(NotificationChannel):
             related_content_type=content_type,
             related_object_id=related_id,
         )
+        logger.debug("In-app notification delivered to %s: %s", recipient.email, title)
         return True
 
 
@@ -77,9 +81,13 @@ class EmailChannel(NotificationChannel):
                 subject=title,
                 body=message,
             )
+            logger.debug("Email notification queued for %s: %s", recipient.email, title)
             return True
         except Exception:
             # Celery not available — skip email, in-app still works
+            logger.warning(
+                "Email notification failed for %s: Celery not available", recipient.email
+            )
             return False
 
 
@@ -137,6 +145,12 @@ class NotificationService:
                 )
                 results.append((channel.__class__.__name__, success))
             except Exception:
+                logger.exception(
+                    "Notification delivery failed via %s for %s: %s",
+                    channel.__class__.__name__,
+                    recipient.email,
+                    title,
+                )
                 results.append((channel.__class__.__name__, False))
 
         return results
