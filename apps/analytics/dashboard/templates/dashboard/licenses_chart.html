@@ -1,0 +1,37 @@
+{% extends "dashboard/base_chart.html" %}
+{% load static %}
+
+{% block title %}License Dashboard{% endblock %}
+{% block heading %}License Dashboard{% endblock %}
+
+{% block stat_cards %}
+<div class="cards">
+    <div class="card"><div class="label">Total Licenses</div><div class="value">{{ data.total_licenses }}</div></div>
+    <div class="card"><div class="label">Total Seats</div><div class="value">{{ data.total_seats }}</div></div>
+    <div class="card"><div class="label">Used Seats</div><div class="value">{{ data.used_seats }}</div></div>
+    <div class="card"><div class="label">Utilization</div><div class="value">{{ data.utilization_rate }}%</div></div>
+    <div class="card"><div class="label">Expiring Soon</div><div class="value">{{ data.expiring_soon }}</div></div>
+</div>
+{% endblock %}
+
+{% block charts %}
+<div class="chart-box">
+    <h3>License Type Breakdown</h3>
+    <canvas id="typeChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ type_labels|json_script:"type-labels" }}
+{{ type_data|json_script:"type-data" }}
+<script>
+    new Chart(document.getElementById('typeChart'), {
+        type: 'bar',
+        data: {
+            labels: JSON.parse(document.getElementById('type-labels').textContent),
+            datasets: [{ data: JSON.parse(document.getElementById('type-data').textContent), backgroundColor: ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'] }]
+        },
+        options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+</script>
+{% endblock %}

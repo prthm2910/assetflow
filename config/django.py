@@ -31,6 +31,7 @@ LOCAL_APPS = [
     "apps.platform.notifications",
     "apps.platform.audit",
     "apps.platform.search",
+    "apps.analytics.dashboard",
 ]
 
 # ==============================================================================

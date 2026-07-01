@@ -28,6 +28,9 @@ db.sqlite3
 staticfiles/
 media/
 
+# JS libraries
+apps/analytics/dashboard/static/js/*.min.js
+
 # ==============================================================================
 # IDE & OS — Editor-specific files
 # ==============================================================================

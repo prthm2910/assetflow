@@ -1,0 +1,51 @@
+{% extends "dashboard/base_chart.html" %}
+{% load static %}
+
+{% block title %}Asset Dashboard{% endblock %}
+{% block heading %}Asset Dashboard{% endblock %}
+
+{% block stat_cards %}
+<div class="cards">
+    <div class="card"><div class="label">Total Assets</div><div class="value">{{ data.total_assets }}</div></div>
+    <div class="card"><div class="label">Utilization Rate</div><div class="value">{{ data.utilization_rate }}%</div></div>
+</div>
+{% endblock %}
+
+{% block charts %}
+<div class="chart-box">
+    <h3>Status Breakdown</h3>
+    <canvas id="statusChart"></canvas>
+</div>
+<div class="chart-box">
+    <h3>Category Breakdown</h3>
+    <canvas id="categoryChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ status_breakdown|json_script:"status-data" }}
+{{ category_breakdown|json_script:"category-data" }}
+<script>
+    const statusData = JSON.parse(document.getElementById('status-data').textContent);
+    const catData = JSON.parse(document.getElementById('category-data').textContent);
+
+    new Chart(document.getElementById('statusChart'), {
+        type: 'pie',
+        data: {
+            labels: statusData.map(d => d.status),
+            datasets: [{ data: statusData.map(d => d.count), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] }]
+        }
+    });
+
+    if (catData.length) {
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'bar',
+            data: {
+                labels: catData.map(d => d.name),
+                datasets: [{ data: catData.map(d => d.count), backgroundColor: '#3b82f6' }]
+            },
+            options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
+</script>
+{% endblock %}
