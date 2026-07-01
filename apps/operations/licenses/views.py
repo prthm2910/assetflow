@@ -1,5 +1,7 @@
 """apps/operations/licenses/views.py — ViewSets for licenses."""
 
+import logging
+
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -22,6 +24,8 @@ from apps.operations.licenses.serializers import (
     LicenseAssignmentSerializer,
     LicenseAssignSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SoftwareLicenseViewSet(BaseViewSet):
@@ -132,6 +136,12 @@ class SoftwareLicenseViewSet(BaseViewSet):
                 asset=asset,
             )
 
+        logger.info(
+            "License %s assigned to %s by %s",
+            locked_license.lic_id,
+            employee.user.get_full_name() if employee else asset.name,
+            request.user.email,
+        )
         return success_response(
             data=LicenseAssignmentSerializer(assignment).data,
             message="License assigned successfully.",
@@ -175,6 +185,11 @@ class SoftwareLicenseViewSet(BaseViewSet):
         assignment.updated_by = request.user
         assignment.save(update_fields=["revoked_at", "updated_at", "updated_by"])
 
+        logger.info(
+            "License assignment %s revoked by %s",
+            assignment.pk,
+            request.user.email,
+        )
         return success_response(
             data=LicenseAssignmentSerializer(assignment).data,
             message="License assignment revoked.",
