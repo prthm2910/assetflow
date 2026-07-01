@@ -40,13 +40,7 @@ class AssetSerializer(BaseSerializer):
             "location",
         ]
         read_only_fields = [
-            "id",
             "asset_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
 
     def validate_organization(self, value):

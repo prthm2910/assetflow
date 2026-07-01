@@ -48,13 +48,7 @@ class IncidentSerializer(BaseSerializer):
             "closed_at",
         ]
         read_only_fields = [
-            "id",
             "inc_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             "resolved_at",
             "closed_at",
             "status",
@@ -91,7 +85,6 @@ class IncidentListSerializer(BaseSerializer):
     class Meta:
         model = Incident
         fields = [
-            "id",
             "inc_id",
             "asset",
             "asset_name",
@@ -103,7 +96,6 @@ class IncidentListSerializer(BaseSerializer):
             "category",
             "status",
             "assigned_to",
-            "created_at",
             "organization",
         ]
 
@@ -132,7 +124,6 @@ class IncidentCreateSerializer(BaseSerializer):
             "closed_at",
         ]
         read_only_fields = [
-            "id",
             "inc_id",
             "reported_by",
             "status",
@@ -140,12 +131,6 @@ class IncidentCreateSerializer(BaseSerializer):
             "resolution_notes",
             "resolved_at",
             "closed_at",
-            "created_by",
-            "updated_by",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
         ]
 
     def validate(self, attrs):

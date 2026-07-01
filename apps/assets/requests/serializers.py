@@ -42,13 +42,7 @@ class AssetRequestSerializer(BaseSerializer):
             "reviewed_at",
         ]
         read_only_fields = [
-            "id",
             "req_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             "reviewed_by",
             "reviewed_at",
             # Core immutable fields
@@ -90,7 +84,6 @@ class AssetRequestListSerializer(BaseSerializer):
     class Meta:
         model = AssetRequest
         fields = [
-            "id",
             "req_id",
             "requested_by",
             "requested_by_name",
@@ -102,7 +95,6 @@ class AssetRequestListSerializer(BaseSerializer):
             "status",
             "reviewed_at",
             "organization",
-            "created_at",
         ]
 
 
@@ -124,16 +116,9 @@ class AssetRequestCreateSerializer(BaseSerializer):
             "status",
         ]
         read_only_fields = [
-            "id",
             "req_id",
             "requested_by",
             "status",
-            "created_by",
-            "updated_by",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
         ]
 
     def validate(self, attrs):

@@ -41,13 +41,7 @@ class AllocationSerializer(BaseSerializer):
             "is_current",
         ]
         read_only_fields = [
-            "id",
             "alloc_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             "allocated_at",
             "is_current",
             # Core fields cannot be modified after creation
@@ -77,7 +71,6 @@ class AllocationListSerializer(BaseSerializer):
     class Meta:
         model = Allocation
         fields = [
-            "id",
             "alloc_id",
             "asset",
             "asset_name",
@@ -111,14 +104,7 @@ class AllocationCreateSerializer(BaseSerializer):
             "notes",
         ]
         read_only_fields = [
-            "id",
             "alloc_id",
-            "created_by",
-            "updated_by",
-            "is_active",
-            "is_deleted",
-            "created_at",
-            "updated_at",
         ]
 
     def validate(self, attrs):

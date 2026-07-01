@@ -45,13 +45,7 @@ class DepartmentSerializer(BaseSerializer):
             "employee_count",
         ]
         read_only_fields = [
-            "id",
             "dept_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
 
     def get_employee_count(self, obj):
@@ -103,13 +97,7 @@ class EmployeeSerializer(BaseSerializer):
             "direct_report_count",
         ]
         read_only_fields = [
-            "id",
             "employee_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
 
     def get_user_details(self, obj):
@@ -153,12 +141,7 @@ class EmployeeCreateSerializer(BaseSerializer):
             "termination_date",
         ]
         read_only_fields = [
-            "id",
             "employee_id",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
 
     def validate_user(self, value):
@@ -192,14 +175,12 @@ class EmployeeListSerializer(BaseSerializer):
     class Meta:
         model = Employee
         fields = [
-            "id",
             "employee_id",
             "full_name",
             "designation",
             "department",
             "department_name",
             "organization",
-            "is_active",
             "join_date",
         ]
 

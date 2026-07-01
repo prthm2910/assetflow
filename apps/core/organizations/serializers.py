@@ -37,13 +37,9 @@ class OrganizationConfigSerializer(BaseSerializer):
             "notify_on_request_rejected",
             "notify_on_incident_reported",
             "notify_on_incident_resolved",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = [
             "organization_id",
-            "created_at",
-            "updated_at",
         ]
 
     def validate_admin_user(self, value):
@@ -91,16 +87,11 @@ class OrganizationSerializer(BaseSerializer):
             "city",
             "country",
             "logo",
-            "is_active",
             "config",
             "config_data",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = [
             "org_id",
-            "created_at",
-            "updated_at",
         ]
 
     def create(self, validated_data):
@@ -147,8 +138,6 @@ class OrganizationListSerializer(BaseSerializer):
             "contact_email",
             "city",
             "country",
-            "is_active",
-            "created_at",
         ]
 
 
@@ -173,14 +162,9 @@ class OrganizationProfileSerializer(BaseSerializer):
             "city",
             "country",
             "logo",
-            "is_active",
             "config",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = [
             "org_id",
             "slug",
-            "created_at",
-            "updated_at",
         ]

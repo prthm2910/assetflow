@@ -12,7 +12,7 @@ class NotificationSerializer(BaseSerializer):
     recipient_email = serializers.EmailField(source="recipient.email", read_only=True)
     recipient_name = serializers.SerializerMethodField()
 
-    class Meta(BaseSerializer.Meta):
+    class Meta:
         model = Notification
         fields = [
             "notif_id",
@@ -26,8 +26,6 @@ class NotificationSerializer(BaseSerializer):
             "is_read",
             "related_content_type",
             "related_object_id",
-            "created_at",
-            "updated_at",
         ]
 
     def get_recipient_name(self, obj):
@@ -39,7 +37,7 @@ class NotificationSerializer(BaseSerializer):
 class NotificationListSerializer(BaseSerializer):
     """Lightweight serializer for list views."""
 
-    class Meta(BaseSerializer.Meta):
+    class Meta:
         model = Notification
         fields = [
             "notif_id",
@@ -48,5 +46,4 @@ class NotificationListSerializer(BaseSerializer):
             "message",
             "is_read",
             "recipient_email",
-            "created_at",
         ]

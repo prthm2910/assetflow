@@ -38,13 +38,7 @@ class AssetCategorySerializer(BaseSerializer):
             "sub_category_count",
         ]
         read_only_fields = [
-            "id",
             "cat_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
         ]
 
     def get_sub_category_count(self, obj):

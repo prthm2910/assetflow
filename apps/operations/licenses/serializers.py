@@ -30,13 +30,7 @@ class SoftwareLicenseSerializer(BaseSerializer):
             "document",
         ]
         read_only_fields = [
-            "id",
             "lic_id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             "used_seats",
             "available_seats",
         ]
@@ -73,7 +67,6 @@ class SoftwareLicenseListSerializer(BaseSerializer):
     class Meta:
         model = SoftwareLicense
         fields = [
-            "id",
             "lic_id",
             "software_name",
             "license_type",
@@ -83,7 +76,6 @@ class SoftwareLicenseListSerializer(BaseSerializer):
             "expiry_date",
             "vendor",
             "organization",
-            "created_at",
         ]
 
 
@@ -98,7 +90,6 @@ class LicenseAssignmentSerializer(BaseSerializer):
     asset_id_hrid = serializers.CharField(source="asset.asset_id", read_only=True)
     license_name = serializers.CharField(source="license.software_name", read_only=True)
     lic_id = serializers.CharField(source="license.lic_id", read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = LicenseAssignment
@@ -118,12 +109,6 @@ class LicenseAssignmentSerializer(BaseSerializer):
             "revoked_at",
         ]
         read_only_fields = [
-            "id",
-            "is_deleted",
-            "created_at",
-            "updated_at",
-            "created_by",
-            "updated_by",
             "assigned_at",
             "revoked_at",
             "license",

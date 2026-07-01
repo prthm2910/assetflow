@@ -19,7 +19,7 @@ class AuditLogListSerializer(BaseSerializer):
     )
     user_name = serializers.SerializerMethodField()
 
-    class Meta(BaseSerializer.Meta):
+    class Meta:
         model = AuditLog
         fields = [
             "audit_id",
@@ -33,8 +33,6 @@ class AuditLogListSerializer(BaseSerializer):
             "ip_address",
             "request_id",
             "path",
-            "created_at",
-            "updated_at",
         ]
 
     def get_user_name(self, obj):
@@ -51,7 +49,7 @@ class AuditLogSerializer(BaseSerializer):
     )
     user_name = serializers.SerializerMethodField()
 
-    class Meta(BaseSerializer.Meta):
+    class Meta:
         model = AuditLog
         fields = [
             "audit_id",
@@ -66,8 +64,6 @@ class AuditLogSerializer(BaseSerializer):
             "ip_address",
             "request_id",
             "path",
-            "created_at",
-            "updated_at",
         ]
 
     def get_user_name(self, obj):
