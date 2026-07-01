@@ -77,12 +77,12 @@ class TestAuditLogModel:
         logs = list(AuditLog.objects.all())
         assert logs[0].created_at >= logs[-1].created_at
 
-    def test_action_choices_exist(self):
+    def test_action_choices_exist(self, organization):
         """All expected action values are valid."""
         valid_actions = {"create", "update", "delete", "allocate", "approve", "reject"}
         for action in valid_actions:
             log = AuditLog(
-                organization=organization if "organization" in dir() else None,
+                organization=organization,
                 action=action,
                 model_name="Test",
                 object_id=uuid.uuid4(),
