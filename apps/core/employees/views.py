@@ -2,6 +2,8 @@
 apps/core/employees/views.py — ViewSets for Department and Employee.
 """
 
+import logging
+
 from django.db import models
 from rest_framework import status
 from rest_framework.decorators import action
@@ -18,6 +20,8 @@ from apps.core.employees.serializers import (
     EmployeeSearchSerializer,
     EmployeeSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DepartmentViewSet(BaseViewSet):
@@ -168,6 +172,11 @@ class EmployeeViewSet(BaseViewSet):
 
         # Prevent self-management
         if str(new_manager_id) == str(employee.id):
+            logger.warning(
+                "Self-management attempt for employee %s by %s",
+                employee.employee_id,
+                request.user.email,
+            )
             return error_response(
                 message="An employee cannot be their own manager.",
                 code="VALIDATION_ERROR",
@@ -193,6 +202,12 @@ class EmployeeViewSet(BaseViewSet):
 
         # Detect cycles
         if self._would_create_cycle(employee, new_manager):
+            logger.warning(
+                "Cycle detected: %s → %s by %s",
+                employee.employee_id,
+                new_manager.employee_id,
+                request.user.email,
+            )
             return error_response(
                 message="Cannot set this manager — would create a reporting cycle.",
                 code="CYCLE_DETECTED",
@@ -202,6 +217,12 @@ class EmployeeViewSet(BaseViewSet):
         employee.manager = new_manager
         employee.save(update_fields=["manager", "updated_at"])
         serializer = EmployeeSerializer(employee)
+        logger.info(
+            "Manager changed for %s to %s by %s",
+            employee.user.get_full_name(),
+            new_manager.user.get_full_name(),
+            request.user.email,
+        )
         return success_response(
             data=serializer.data,
             message=f"Manager changed to {new_manager.user.get_full_name()}.",
@@ -254,5 +275,6 @@ class EmployeeViewSet(BaseViewSet):
             | models.Q(designation__icontains=query)
         )[:20]
 
+        logger.debug("Employee search '%s' returned %d results by %s", query, len(results), user.email)
         serializer = EmployeeSearchSerializer(results, many=True)
         return success_response(data=serializer.data)
